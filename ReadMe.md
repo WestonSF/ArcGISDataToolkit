@@ -1,19 +1,21 @@
 #Data Upload & Update
 
-- WebDataUpload will zip up datasets and upload them to the server via FTP
-- DataUpdateFromZip will unzip datasets and load them into the database on the server
-- WebDataUpload is the main script to be run and will call the DataUpdateFromZip tool via a geoprocessing service
+This tool is a process to update data on a remote web server. It consits of two geoporcessing tasks (one to be
+setup on the server and one to be setup where the data is located).
 
-This is where you write an awesome description of your project.  Who, what, why, when, where.
+* WebDataUpload will zip up datasets and upload them to the server via FTP
+* DataUpdateFromZip will unzip datasets and load them into the database on the server
+* WebDataUpload is the main script to be run and will call the DataUpdateFromZip tool via a geoprocessing service
 
 [](View it live)
 
-![](Screenshot)
+[](Screenshot)
 
 
 ## Features
-* feature 1
-* feature 2
+
+* Easy way to update data on web server
+* Two options - New or existing
 
 
 ## Instructions
@@ -24,8 +26,8 @@ This is where you write an awesome description of your project.  Who, what, why,
 
 ## Requirements
 
-* FTP server setup
-* Setup DataUpdateFromZip tool as Geoprocessing service (public as secure doesn't work) with these parameters:
+* FTP server setup on server
+* Setup DataUpdateFromZip tool as Geoprocessing service with these parameters:
 	* Log File is a constant (defined when publishing tool)
 	* Database is a constant (defined when publishing tool)
 	* Update folder is a constant (defined when publishing tool)
@@ -62,5 +64,3 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
-A copy of the license is available in the repository's [license.txt]() file.
