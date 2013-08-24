@@ -1,4 +1,4 @@
-#Data Upload & Update
+# Data Upload & Update
 
 This tool is a process to update data on a remote web server. It consits of two geoporcessing tasks (one to be
 setup on the server and one to be setup where the data is located).
@@ -7,21 +7,13 @@ setup on the server and one to be setup where the data is located).
 * DataUpdateFromZip will unzip datasets and load them into the database on the server
 * WebDataUpload is the main script to be run and will call the DataUpdateFromZip tool via a geoprocessing service
 
-[](View it live)
-
-[](Screenshot)
+![Screenshot](/Screenshot.jpg)
 
 
 ## Features
 
 * Easy way to update data on web server
 * Two options - New or existing
-
-
-## Instructions
-
-1. Fork and then clone the repo or download the .zip file. 
-2. Run and try the examples.
 
 
 ## Requirements
@@ -51,7 +43,7 @@ Anyone and everyone is welcome to contribute.
 
 
 ## Licensing
-Copyright 2013 Splice Group
+Copyright 2013 Shaun Weston
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
