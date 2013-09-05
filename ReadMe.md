@@ -1,11 +1,17 @@
-# Data Upload & Update
+# Data Update
 
-This tool is a process to update data on a remote web server. It consits of two geoporcessing tasks (one to be
+### Two tools are available:
+
+### Remote Server Data Update
+This tool is a process to update data on a remote web server. It consists of two geoporcessing tasks (one to be
 setup on the server and one to be setup where the data is located).
 
 * WebDataUpload will zip up datasets and upload them to the server via FTP
 * DataUpdateFromZip will unzip datasets and load them into the database on the server
 * WebDataUpload is the main script to be run and will call the DataUpdateFromZip tool via a geoprocessing service
+
+### Update from Link
+This tool will update data in a geodatabase from a link provided. This link provided will contain a zipped up geodatabase.
 
 ![Screenshot](/Screenshot.jpg)
 
