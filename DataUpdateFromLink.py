@@ -1,30 +1,29 @@
 #-------------------------------------------------------------
-# Name:       Data Update From Zip
-# Purpose:    Updates data in a geodatabase from a zip file containing a geodatabase. Will get latest
-#             zip file from update folder. Two update options:
+# Name:       Data Update from Link
+# Purpose:    Downloads a zipped up file geodatabase from a download link. Updates data in a geodatabase
+#             from the zip file. Two update options:
 #             Existing Mode - Will only update datasets that have the same name and will delete and
 #             append records, so field names need to be the same.
 #             New Mode - Copies all datasets from the geodatabase and loads into geodatabase. Requires
 #             no locks on geodatabase.
-#             NOTE: If using ArcGIS 10.0 need to set scratch workspace as folder.
-# Author:     Shaun Weston (shaun.weston@splicegroup.co.nz)
-# Created:    31/05/2013
+# Created:    05/09/2013
 # Copyright:   (c) Splice Group
-# ArcGIS Version:   10.0/10.1
-# Python Version:   2.6/2.7
+# ArcGIS Version:   10.1/10.2
+# Python Version:   2.7
 #--------------------------------
 
 # Import modules and enable data to be overwritten
 import os
 import sys
 import datetime
+import urllib
 import zipfile
 import uuid
 import glob
 import arcpy
 arcpy.env.overwriteOutput = True
     
-def gotoFunction(logFile,updateFolder,updateMode,geodatabase): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def gotoFunction(logFile,downloadLink,updateMode,geodatabase,featureDataset): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         #--------------------------------------------Logging--------------------------------------------#        
         #Set the start time
@@ -32,33 +31,25 @@ def gotoFunction(logFile,updateFolder,updateMode,geodatabase): # Get parameters 
         datetimeStart = setdateStart.strftime("%d/%m/%Y - %H:%M:%S")
         # Open log file to set start time
         with open(logFile, "a") as f:
-            f.write("---" + "\n" + "Data update from zip process started at " + datetimeStart)
+            f.write("---" + "\n" + "Data update process started at " + datetimeStart)
         #-----------------------------------------------------------------------------------------------#
 
-        # Get the arcgis version
-        arcgisVersion = arcpy.GetInstallInfo()['Version']
+        # Download the file from the link
+        urllib.urlretrieve(downloadLink, os.path.join(arcpy.env.scratchFolder, "Data.zip"))
+        
+        # Unzip the file to the scrtach folder
+        arcpy.AddMessage("Extracting zip file...")  
+        zip = zipfile.ZipFile(os.path.join(arcpy.env.scratchFolder, "Data.zip"), mode="r")
+        zip.extractall(arcpy.env.scratchFolder)
 
-        # Get the newest zip file from the update folder
-        latestFile = max(glob.iglob(updateFolder + r"\*.zip"), key=os.path.getmtime)
-
-        # Setup scratch folder differently depending on ArcGIS version
-        if (arcgisVersion == "10.0"):     
-            # Setup geodatabase to load data into in temporary workspace
-            tempFolder = arcpy.CreateFolder_management(arcpy.env.scratchWorkspace, "WebData-" + str(uuid.uuid1()))
-        else:        
-            # Setup geodatabase to load data into in temporary workspace
-            tempFolder = arcpy.CreateFolder_management(arcpy.env.scratchFolder, "WebData-" + str(uuid.uuid1()))
-
-        arcpy.AddMessage("Extracting zip file...")             
-        # Extract the zip file to a temporary location
-        zip = zipfile.ZipFile(latestFile, mode="r")
-        zip.extractall(str(tempFolder))
+        # Get the newest unzipped database from the scratch folder
+        database = max(glob.iglob(arcpy.env.scratchFolder + r"\*.gdb"), key=os.path.getmtime)
 
         # Assign the geodatbase workspace and load in the datasets to the lists
-        arcpy.env.workspace = os.path.join(str(tempFolder), "Data.gdb")
+        arcpy.env.workspace = database
         featureclassList = arcpy.ListFeatureClasses()
         tableList = arcpy.ListTables()       
-
+        
         arcpy.AddMessage("Copying datasets...")        
         # Load the feature classes into the geodatabase if at least one is in the geodatabase provided
         if (len(featureclassList) > 0):        
@@ -69,12 +60,21 @@ def gotoFunction(logFile,updateFolder,updateMode,geodatabase): # Get parameters 
                # If update mode is then copy, otherwise delete and appending records                
                if (updateMode == "New"):
                    # Copy feature class into geodatabase using the same dataset name
-                   arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(geodatabase, describeDataset.name), "", "0", "0", "0")
+                   # If feature dataset provided, add that to path
+                   if featureDataset:
+                      arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(geodatabase + "\\" + featureDataset, describeDataset.name), "", "0", "0", "0")                                      
+                   else:
+                      arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(geodatabase, describeDataset.name), "", "0", "0", "0")
                else:
                     # If dataset exists in geodatabase, delete features and load in new data
                     if arcpy.Exists(os.path.join(geodatabase, eachFeatureclass)):
-                        arcpy.DeleteFeatures_management(os.path.join(geodatabase, eachFeatureclass))
-                        arcpy.Append_management(os.path.join(arcpy.env.workspace, eachFeatureclass), os.path.join(geodatabase, eachFeatureclass), "NO_TEST", "", "")
+                        # If feature dataset provided, add that to path
+                        if featureDataset:
+                            arcpy.DeleteFeatures_management(os.path.join(geodatabase + "\\" + featureDataset, eachFeatureclass))
+                            arcpy.Append_management(os.path.join(arcpy.env.workspace, eachFeatureclass), os.path.join(geodatabase + "//" + featureDataset, eachFeatureclass), "NO_TEST", "", "")                            
+                        else:
+                            arcpy.DeleteFeatures_management(os.path.join(geodatabase, eachFeatureclass))
+                            arcpy.Append_management(os.path.join(arcpy.env.workspace, eachFeatureclass), os.path.join(geodatabase, eachFeatureclass), "NO_TEST", "", "")
                     else:
                         #--------------------------------------------Logging--------------------------------------------#
                         arcpy.AddMessage("Warning: " + os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated") 
@@ -95,7 +95,7 @@ def gotoFunction(logFile,updateFolder,updateMode,geodatabase): # Get parameters 
                else:
                     # If dataset exists in geodatabase, delete features and load in new data
                     if arcpy.Exists(os.path.join(geodatabase, eachTable)):
-                        arcpy.DeleteFeatures_management(os.path.join(geodatabase, eachTable))
+                        arcpy.DeleteRows_management(os.path.join(geodatabase, eachTable))
                         arcpy.Append_management(os.path.join(arcpy.env.workspace, eachTable), os.path.join(geodatabase, eachTable), "NO_TEST", "", "")
                     else:
                         #--------------------------------------------Logging--------------------------------------------#
@@ -112,7 +112,7 @@ def gotoFunction(logFile,updateFolder,updateMode,geodatabase): # Get parameters 
         datetimeEnd = setdateEnd.strftime("%d/%m/%Y - %H:%M:%S")
         # Open log file to set end time
         with open(logFile, "a") as f:
-            f.write("\n" + "Data update from zip process ended at " + datetimeEnd + "\n")
+            f.write("\n" + "Data update process ended at " + datetimeEnd + "\n")
             f.write("---" + "\n")
         #-----------------------------------------------------------------------------------------------#                
         pass
@@ -125,7 +125,7 @@ def gotoFunction(logFile,updateFolder,updateMode,geodatabase): # Get parameters 
         datetimeEnd = setdateEnd.strftime("%d/%m/%Y - %H:%M:%S")
         # Open log file to set end time
         with open(logFile, "a") as f:
-            f.write("\n" + "Data update from zip process ended at " + datetimeEnd + "\n")
+            f.write("\n" + "Data update process ended at " + datetimeEnd + "\n")
             f.write("There was an error: " + arcpy.GetMessages(2) + "\n")        
             f.write("---" + "\n")
         #-----------------------------------------------------------------------------------------------#
@@ -138,7 +138,7 @@ def gotoFunction(logFile,updateFolder,updateMode,geodatabase): # Get parameters 
         datetimeEnd = setdateEnd.strftime("%d/%m/%Y - %H:%M:%S")
         # Open log file to set end time
         with open(logFile, "a") as f:
-            f.write("\n" + "Data update from zip process ended at " + datetimeEnd + "\n")
+            f.write("\n" + "Data update process ended at " + datetimeEnd + "\n")
             f.write("There was an error: " + e.args[0] + "\n")        
             f.write("---" + "\n")
         #-----------------------------------------------------------------------------------------------# 
