@@ -6,7 +6,7 @@
 # Author:     Shaun Weston (shaun.weston@splicegroup.co.nz)
 # Created:    31/05/2013
 # Copyright:   (c) Splice Group
-# ArcGIS Version:   10.0/10.1
+# ArcGIS Version:   10.0+
 # Python Version:   2.6/2.7
 #--------------------------------
 

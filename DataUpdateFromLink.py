@@ -8,7 +8,7 @@
 #             no locks on geodatabase.
 # Created:    05/09/2013
 # Copyright:   (c) Splice Group
-# ArcGIS Version:   10.1/10.2
+# ArcGIS Version:   10.1+
 # Python Version:   2.7
 #--------------------------------
 

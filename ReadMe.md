@@ -1,31 +1,44 @@
 # Data Update
 
-#### Two tools are available:
+The data update toolset contains a number of tools and scripts to update data from a varierty of different sources. Three 
+tools are available.
+
+#### Update from Link
+Downloads a zipped up file geodatabase from a download link. Updates data in a geodatabase from the zip file and 
+will update the datasets with the same name in the specified geodatabase.
+
+![DataUpdateFromLinkScreenshot](/images/DataUpdateFromLinkScreenshot.jpg)
+
+#### Update from Zip
+Updates data in a geodatabase from a zip file containing a geodatabase. Will get the latest zip file from update folder and 
+update the datasets with the same name in the specified geodatabase.
+
+#### Web Data Upload
+Copies data to be replicated into geodatabase and zips this up. Zip file is then uploaded to FTP site 
+for loading into a geodatabase.
 
 #### Remote Server Data Update
-This tool is a process to update data on a remote web server. It consists of two geoporcessing tasks (one to be
+This combines two of the above tools to update data on a remote web server. It consists of two geoporcessing tasks (one to be
 setup on the server and one to be setup where the data is located).
 
 * WebDataUpload will zip up datasets and upload them to the server via FTP
 * DataUpdateFromZip will unzip datasets and load them into the database on the server
 * WebDataUpload is the main script to be run and will call the DataUpdateFromZip tool via a geoprocessing service
 
-#### Update from Link
-This tool will update data in a geodatabase from a link provided. This link provided will contain a zipped up geodatabase.
-
-![Screenshot](/images/Screenshot.jpg)
-
 
 ## Features
 
-* Easy way to update data on web server
-* Two options - New or existing
-
+* Automate the data update process.
+* Get data from a varierty of sources.
+* Easy way to update data on web server.
+* Two options - New or existing.
 
 ## Requirements
 
-* FTP server setup on server
-* Setup DataUpdateFromZip tool as Geoprocessing service with these parameters:
+* ArcGIS for Desktop 10.0+
+* For Remote Server Data Update, ArcGIS for Server 10.1+
+* For Remote Server Data Update, FTP server setup on server
+* For Remote Server Data Update tool, setup DataUpdateFromZip tool as Geoprocessing service with these parameters:
 	* Log File is a constant (defined when publishing tool)
 	* Database is a constant (defined when publishing tool)
 	* Update folder is a constant (defined when publishing tool)
