@@ -4,7 +4,8 @@
 #             Zip file is then uploaded to FTP site for loading into database.
 #             NOTE: If using ArcGIS 10.0 need to set scratch workspace as a folder.
 # Author:     Shaun Weston (shaun.weston@splicegroup.co.nz)
-# Created:    31/05/2013
+# Date Created:    31/05/2013
+# Last Updated:    18/11/2013
 # Copyright:   (c) Splice Group
 # ArcGIS Version:   10.0+
 # Python Version:   2.6/2.7
@@ -20,18 +21,21 @@ import uuid
 import ftplib
 import arcpy
 arcpy.env.overwriteOutput = True
-  
-def gotoFunction(logFile,featureClasses,tables,ftpSite,ftpFolder,ftpUsername,ftpPassword,gpService): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+
+# Set variables
+logInfo = "false"
+logFile = r""
+sendEmail = "false"
+output = None
+
+# Start of main function
+def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolder,ftpUsername,ftpPassword,gpService): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
-        #--------------------------------------------Logging--------------------------------------------#        
-        #Set the start time
-        setdateStart = datetime.datetime.now()
-        datetimeStart = setdateStart.strftime("%d/%m/%Y - %H:%M:%S")
-        # Open log file to set start time
-        with open(logFile, "a") as f:
-            f.write("---" + "\n" + "Web data upload process started at " + datetimeStart)
-        #-----------------------------------------------------------------------------------------------#
-            
+        # Log start
+        if logInfo == "true":
+            loggingFunction(logFile,"start","")
+
+        # --------------------------------------- Start of code --------------------------------------- #
         # Get the arcgis version
         arcgisVersion = arcpy.GetInstallInfo()['Version']
         # Setup scratch folder differently depending on ArcGIS version
@@ -66,6 +70,23 @@ def gotoFunction(logFile,featureClasses,tables,ftpSite,ftpFolder,ftpUsername,ftp
                # Copy feature class into geodatabase using the same dataset name
                arcpy.TableSelect_analysis(eachTable, os.path.join(geodatabase, describeDataset.name), "")
 
+        # If CSV files provided
+        if (len(csvFiles) > 0):    
+            csvList = string.split(str(csvFiles).replace("'", ""), ";")
+            # Loop through of the CSVs
+            for eachCSV in csvList:
+               # Create a Describe object from the dataset
+               describeDataset = arcpy.Describe(eachCSV)
+               datasetName = string.split(describeDataset.name, ".")
+               # Change CSV name if starts with a digit
+               if datasetName[0].isdigit():
+                   datasetName[0] = "Layer" + datasetName[0]
+               # Create feature layer and convert to feature class
+               csvFields = string.split(str(csvXYFieldNames).replace("'", ""), ",")
+               # Copy feature class into geodatabase using the same dataset name
+               arcpy.MakeXYEventLayer_management(eachCSV, csvFields[0], csvFields[1], "Layer", "PROJCS['NZGD_2000_New_Zealand_Transverse_Mercator',GEOGCS['GCS_NZGD_2000',DATUM['D_NZGD_2000',SPHEROID['GRS_1980',6378137.0,298.257222101]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',1600000.0],PARAMETER['False_Northing',10000000.0],PARAMETER['Central_Meridian',173.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0]];-4020900 1900 10000;-100000 10000;-100000 10000;0.001;0.001;0.001;IsHighPrecision", "")
+               arcpy.CopyFeatures_management("Layer", os.path.join(geodatabase, datasetName[0]), "", "0", "0", "0")
+               
         # Check input datasets are provided before zipping up
         if ((len(featureClasses) > 0) or (len(tables) > 0)):
             arcpy.AddMessage("Zipping data...")
@@ -103,53 +124,91 @@ def gotoFunction(logFile,featureClasses,tables,ftpSite,ftpFolder,ftpUsername,ftp
         else:
             #--------------------------------------------Logging--------------------------------------------#
             arcpy.AddMessage("Process stopped: No datasets provided") 
-            # Open log file to set warning
-            with open(logFile, "a") as f:
-                 f.write("\nProcess stopped: No datasets provided")
+            # Log error
+            if logInfo == "true":         
+                loggingFunction(logFile,"error","\nProcess stopped: No datasets provided")
             #-----------------------------------------------------------------------------------------------#
 
         # Call geoprocessing service to update data on server
         arcpy.AddMessage("Updating data on server...")
         arcpy.ImportToolbox(gpService, "toolbox")
         arcpy.DataUpdateFromZip_toolbox("Existing")      
-
-        #--------------------------------------------Logging--------------------------------------------#           
-        #Set the end time
-        setdateEnd = datetime.datetime.now()
-        datetimeEnd = setdateEnd.strftime("%d/%m/%Y - %H:%M:%S")
-        # Open log file to set end time
-        with open(logFile, "a") as f:
-            f.write("\n" + "Web data upload process ended at " + datetimeEnd + "\n")
-            f.write("---" + "\n")
-        #-----------------------------------------------------------------------------------------------#                
+        # --------------------------------------- End of code --------------------------------------- #  
+            
+        # If called from gp tool return the arcpy parameter   
+        if __name__ == '__main__':
+            # Return the output if there is any
+            if output:
+                arcpy.SetParameterAsText(1, output)
+        # Otherwise return the result          
+        else:
+            # Return the output if there is any
+            if output:
+                return output      
+        # Log end
+        if logInfo == "true":
+            loggingFunction(logFile,"end","")        
         pass
-    # If arcpy error    
+    # If arcpy error
     except arcpy.ExecuteError:
-        #--------------------------------------------Logging--------------------------------------------#            
-        arcpy.AddMessage(arcpy.GetMessages(2))    
-        #Set the end time
-        setdateEnd = datetime.datetime.now()
-        datetimeEnd = setdateEnd.strftime("%d/%m/%Y - %H:%M:%S")
-        # Open log file to set end time
-        with open(logFile, "a") as f:
-            f.write("\n" + "Web data upload process ended at " + datetimeEnd + "\n")
-            f.write("There was an error: " + arcpy.GetMessages(2) + "\n")        
-            f.write("---" + "\n")
-        #-----------------------------------------------------------------------------------------------#
+        # Show the message
+        arcpy.AddMessage(arcpy.GetMessages(2))        
+        # Log error
+        if logInfo == "true":  
+            loggingFunction(logFile,"error",arcpy.GetMessages(2))
     # If python error
     except Exception as e:
-        #--------------------------------------------Logging--------------------------------------------#           
-        arcpy.AddMessage(e.args[0])           
-        #Set the end time
-        setdateEnd = datetime.datetime.now()
-        datetimeEnd = setdateEnd.strftime("%d/%m/%Y - %H:%M:%S")
-        # Open log file to set end time
+        # Show the message
+        arcpy.AddMessage(e.args[0])          
+        # Log error
+        if logInfo == "true":         
+            loggingFunction(logFile,"error",e.args[0])
+# End of main function
+
+# Start of logging function
+def loggingFunction(logFile,result,info):
+    #Get the time/date
+    setDateTime = datetime.datetime.now()
+    currentDateTime = setDateTime.strftime("%d/%m/%Y - %H:%M:%S")
+    
+    # Open log file to log message and time/date
+    if result == "start":
         with open(logFile, "a") as f:
-            f.write("\n" + "Web data upload process ended at " + datetimeEnd + "\n")
-            f.write("There was an error: " + e.args[0] + "\n")        
+            f.write("---" + "\n" + "Process started at " + currentDateTime)
+    if result == "end":
+        with open(logFile, "a") as f:
+            f.write("\n" + "Process ended at " + currentDateTime + "\n")
             f.write("---" + "\n")
-        #-----------------------------------------------------------------------------------------------# 
-# End of function
+    if result == "warning":
+        with open(logFile, "a") as f:
+            f.write("\n" + "Warning: " + info)        
+    if result == "error":
+        with open(logFile, "a") as f:
+            f.write("\n" + "Process ended at " + currentDateTime + "\n")
+            f.write("There was an error: " + info + "\n")        
+            f.write("---" + "\n")
+        # Send an email
+        if sendEmail == "true":
+            arcpy.AddMessage("Sending email...")
+            # Receiver email address
+            to = ''
+            # Sender email address and password
+            gmail_user = ''
+            gmail_pwd = ''
+            # Server and port information
+            smtpserver = smtplib.SMTP("smtp.gmail.com",587) 
+            smtpserver.ehlo()
+            smtpserver.starttls() 
+            smtpserver.ehlo
+            # Login
+            smtpserver.login(gmail_user, gmail_pwd)
+            # Email content
+            header = 'To:' + to + '\n' + 'From: ' + gmail_user + '\n' + 'Subject:Error \n'
+            msg = header + '\n' + '' + '\n' + '\n' + info
+            # Send the email and close the connection
+            smtpserver.sendmail(gmail_user, to, msg)
+            smtpserver.close()                
+# End of logging function    
 
 # This test allows the script to be used from the operating
 # system command prompt (stand-alone), in a Python IDE, 
@@ -159,5 +218,4 @@ if __name__ == '__main__':
     # Arguments are optional - If running from ArcGIS Desktop tool, parameters will be loaded into *argv
     argv = tuple(arcpy.GetParameterAsText(i)
         for i in range(arcpy.GetArgumentCount()))
-    gotoFunction(*argv)
-    
+    mainFunction(*argv)

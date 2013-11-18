@@ -6,7 +6,8 @@
 #             append records, so field names need to be the same.
 #             New Mode - Copies all datasets from the geodatabase and loads into geodatabase. Requires
 #             no locks on geodatabase.
-# Created:    05/09/2013
+# Date Created:    05/09/2013
+# Last Updated:    18/11/2013
 # Copyright:   (c) Splice Group
 # ArcGIS Version:   10.1+
 # Python Version:   2.7
@@ -22,18 +23,21 @@ import uuid
 import glob
 import arcpy
 arcpy.env.overwriteOutput = True
-    
-def gotoFunction(logFile,downloadLink,updateMode,geodatabase,featureDataset): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
-    try:
-        #--------------------------------------------Logging--------------------------------------------#        
-        #Set the start time
-        setdateStart = datetime.datetime.now()
-        datetimeStart = setdateStart.strftime("%d/%m/%Y - %H:%M:%S")
-        # Open log file to set start time
-        with open(logFile, "a") as f:
-            f.write("---" + "\n" + "Data update process started at " + datetimeStart)
-        #-----------------------------------------------------------------------------------------------#
 
+# Set variables
+logInfo = "false"
+logFile = r""
+sendEmail = "false"
+output = None
+
+# Start of main function
+def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+    try:
+        # Log start
+        if logInfo == "true":
+            loggingFunction(logFile,"start","")
+
+        # --------------------------------------- Start of code --------------------------------------- #
         # Download the file from the link
         urllib.urlretrieve(downloadLink, os.path.join(arcpy.env.scratchFolder, "Data.zip"))
         
@@ -76,12 +80,11 @@ def gotoFunction(logFile,downloadLink,updateMode,geodatabase,featureDataset): # 
                             arcpy.DeleteFeatures_management(os.path.join(geodatabase, eachFeatureclass))
                             arcpy.Append_management(os.path.join(arcpy.env.workspace, eachFeatureclass), os.path.join(geodatabase, eachFeatureclass), "NO_TEST", "", "")
                     else:
-                        #--------------------------------------------Logging--------------------------------------------#
-                        arcpy.AddMessage("Warning: " + os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated") 
+                        # Log warning
+                        arcpy.AddMessage("Warning: " + os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated")
                         # Open log file to set warning
                         with open(logFile, "a") as f:
-                            f.write("\nWarning: " + os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated")
-                        #-----------------------------------------------------------------------------------------------#
+                            loggingFunction(logFile,"warning",os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated")
                             
         if (len(tableList) > 0):    
             # Loop through of the tables
@@ -98,51 +101,87 @@ def gotoFunction(logFile,downloadLink,updateMode,geodatabase,featureDataset): # 
                         arcpy.DeleteRows_management(os.path.join(geodatabase, eachTable))
                         arcpy.Append_management(os.path.join(arcpy.env.workspace, eachTable), os.path.join(geodatabase, eachTable), "NO_TEST", "", "")
                     else:
-                        #--------------------------------------------Logging--------------------------------------------#
-                        arcpy.AddMessage("Warning: " + os.path.join(geodatabase, eachTable) + " does not exist and won't be updated") 
+                        # Log warning
+                        arcpy.AddMessage("Warning: " + os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")
                         # Open log file to set warning
                         with open(logFile, "a") as f:
-                            f.write("\nWarning: " + os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")
-                        #-----------------------------------------------------------------------------------------------#
-                            
-                           
-        #--------------------------------------------Logging--------------------------------------------#           
-        #Set the end time
-        setdateEnd = datetime.datetime.now()
-        datetimeEnd = setdateEnd.strftime("%d/%m/%Y - %H:%M:%S")
-        # Open log file to set end time
-        with open(logFile, "a") as f:
-            f.write("\n" + "Data update process ended at " + datetimeEnd + "\n")
-            f.write("---" + "\n")
-        #-----------------------------------------------------------------------------------------------#                
+                            loggingFunction(logFile,"warning",os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")                  
+        # --------------------------------------- End of code --------------------------------------- #  
+            
+        # If called from gp tool return the arcpy parameter   
+        if __name__ == '__main__':
+            # Return the output if there is any
+            if output:
+                arcpy.SetParameterAsText(1, output)
+        # Otherwise return the result          
+        else:
+            # Return the output if there is any
+            if output:
+                return output      
+        # Log end
+        if logInfo == "true":
+            loggingFunction(logFile,"end","")        
         pass
-    # If arcpy error    
+    # If arcpy error
     except arcpy.ExecuteError:
-        #--------------------------------------------Logging--------------------------------------------#            
-        arcpy.AddMessage(arcpy.GetMessages(2))    
-        #Set the end time
-        setdateEnd = datetime.datetime.now()
-        datetimeEnd = setdateEnd.strftime("%d/%m/%Y - %H:%M:%S")
-        # Open log file to set end time
-        with open(logFile, "a") as f:
-            f.write("\n" + "Data update process ended at " + datetimeEnd + "\n")
-            f.write("There was an error: " + arcpy.GetMessages(2) + "\n")        
-            f.write("---" + "\n")
-        #-----------------------------------------------------------------------------------------------#
+        # Show the message
+        arcpy.AddMessage(arcpy.GetMessages(2))        
+        # Log error
+        if logInfo == "true":  
+            loggingFunction(logFile,"error",arcpy.GetMessages(2))
     # If python error
     except Exception as e:
-        #--------------------------------------------Logging--------------------------------------------#           
-        arcpy.AddMessage(e.args[0])           
-        #Set the end time
-        setdateEnd = datetime.datetime.now()
-        datetimeEnd = setdateEnd.strftime("%d/%m/%Y - %H:%M:%S")
-        # Open log file to set end time
+        # Show the message
+        arcpy.AddMessage(e.args[0])          
+        # Log error
+        if logInfo == "true":         
+            loggingFunction(logFile,"error",e.args[0])
+# End of main function
+
+# Start of logging function
+def loggingFunction(logFile,result,info):
+    #Get the time/date
+    setDateTime = datetime.datetime.now()
+    currentDateTime = setDateTime.strftime("%d/%m/%Y - %H:%M:%S")
+    
+    # Open log file to log message and time/date
+    if result == "start":
         with open(logFile, "a") as f:
-            f.write("\n" + "Data update process ended at " + datetimeEnd + "\n")
-            f.write("There was an error: " + e.args[0] + "\n")        
+            f.write("---" + "\n" + "Process started at " + currentDateTime)
+    if result == "end":
+        with open(logFile, "a") as f:
+            f.write("\n" + "Process ended at " + currentDateTime + "\n")
             f.write("---" + "\n")
-        #-----------------------------------------------------------------------------------------------# 
-# End of function
+    if result == "warning":
+        with open(logFile, "a") as f:
+            f.write("\n" + "Warning: " + info)               
+    if result == "error":
+        with open(logFile, "a") as f:
+            f.write("\n" + "Process ended at " + currentDateTime + "\n")
+            f.write("Error: " + info + "\n")        
+            f.write("---" + "\n")
+        # Send an email
+        if sendEmail == "true":
+            arcpy.AddMessage("Sending email...")
+            # Receiver email address
+            to = ''
+            # Sender email address and password
+            gmail_user = ''
+            gmail_pwd = ''
+            # Server and port information
+            smtpserver = smtplib.SMTP("smtp.gmail.com",587) 
+            smtpserver.ehlo()
+            smtpserver.starttls() 
+            smtpserver.ehlo
+            # Login
+            smtpserver.login(gmail_user, gmail_pwd)
+            # Email content
+            header = 'To:' + to + '\n' + 'From: ' + gmail_user + '\n' + 'Subject:Error \n'
+            msg = header + '\n' + '' + '\n' + '\n' + info
+            # Send the email and close the connection
+            smtpserver.sendmail(gmail_user, to, msg)
+            smtpserver.close()                
+# End of logging function    
 
 # This test allows the script to be used from the operating
 # system command prompt (stand-alone), in a Python IDE, 
@@ -152,5 +191,5 @@ if __name__ == '__main__':
     # Arguments are optional - If running from ArcGIS Desktop tool, parameters will be loaded into *argv
     argv = tuple(arcpy.GetParameterAsText(i)
         for i in range(arcpy.GetArgumentCount()))
-    gotoFunction(*argv)
+    mainFunction(*argv)
     
