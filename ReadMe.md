@@ -53,7 +53,7 @@ setup on the server and one to be setup where the data is located).
 
 ## Issues
 
-Find a bug or want to request a new feature?  Please let us know by submitting an issue.
+Find a bug or want to request a new feature?  Please let me know by submitting an issue.
 
 
 ## Contributing
