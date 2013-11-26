@@ -47,8 +47,12 @@ setup on the server and one to be setup where the data is located).
 
 ## Resources
 
-* [Blog](http://westonelli.wordpress.com)
+* [LinkedIn](http://www.linkedin.com/in/sfweston)
+* [GitHub](https://github.com/WestonSF)
 * [Twitter](https://twitter.com/Westonelli)
+* [Blog](http://westonelli.wordpress.com)
+* [ArcGIS API for Javascript](https://developers.arcgis.com/en/javascript)
+* [Python for ArcGIS](http://resources.arcgis.com/en/communities/python)
 
 
 ## Issues

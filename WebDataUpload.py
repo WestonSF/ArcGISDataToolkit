@@ -3,10 +3,10 @@
 # Purpose:    Copies data to be replicated into geodatabase and zips this up.
 #             Zip file is then uploaded to FTP site for loading into database.
 #             NOTE: If using ArcGIS 10.0 need to set scratch workspace as a folder.
-# Author:     Shaun Weston (shaun.weston@splicegroup.co.nz)
+# Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    31/05/2013
 # Last Updated:    18/11/2013
-# Copyright:   (c) Splice Group
+# Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0+
 # Python Version:   2.6/2.7
 #--------------------------------
@@ -88,7 +88,7 @@ def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolde
                arcpy.CopyFeatures_management("Layer", os.path.join(geodatabase, datasetName[0]), "", "0", "0", "0")
                
         # Check input datasets are provided before zipping up
-        if ((len(featureClasses) > 0) or (len(tables) > 0)):
+        if ((len(featureClasses) > 0) or (len(tables) > 0) or (len(csvFiles) > 0)):
             arcpy.AddMessage("Zipping data...")
             # Setup the zip file
             if (arcgisVersion == "10.0"):
