@@ -13,6 +13,10 @@ will update the datasets with the same name in the specified geodatabase.
 Updates data in a geodatabase from a zip file containing a geodatabase. Will get the latest zip file from update folder and 
 update the datasets with the same name in the specified geodatabase.
 
+#### Update from CSV
+Updates data in a geodatabase from a CSV file. Will get the latest zip CSV from update folder and 
+updates the dataset with the same name in the specified geodatabase.
+
 #### Web Data Upload
 Copies data to be replicated into geodatabase and zips this up. Zip file is then uploaded to FTP site 
 for loading into a geodatabase.
