@@ -1,7 +1,6 @@
 # Data Update
 
-The data update toolset contains a number of tools and scripts to update data from a varierty of different sources. Three 
-tools are available.
+The data update toolset contains a number of tools and scripts to update data from a varierty of different sources. The following tools are available:
 
 #### Update from Link
 Downloads a zipped up file geodatabase from a download link. Updates data in a geodatabase from the zip file and 
@@ -48,6 +47,14 @@ setup on the server and one to be setup where the data is located).
 	* Update folder is a constant (defined when publishing tool)
 	* Update mode can be existing or new (defined when running)
 
+
+## Installation Instructions
+
+* Setup a script to run as a scheduled task
+	* Fork and then clone the repository or download the .zip file. 
+	* Edit the batch file to be automated and change the parameters to suit your environment.
+	* Open Windows Task Scheduler and setup a new basic task.
+	* Set the task to execute the batch file at a specified time.
 
 ## Resources
 

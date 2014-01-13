@@ -7,4 +7,4 @@ c:\python26\arcgis10.0\python "F:\Tools & Scripts\Data Updates\WebDataUpload.py"
  "203.190.214.185" ^
  "WCRC" ^
  "ftp" ^
- "Spl1ceGroupG1S"
+ "*****"
