@@ -1,6 +1,6 @@
 # ArcGIS Data Toolkit
 
-The data update toolset contains a number of tools and scripts to update data from a varierty of different sources. The following tools are available:
+The ArcGIS Data Toolkit contains a number of tools and scripts to update and convert data from a varierty of different sources. The following tools are available:
 
 #### Update from Link
 Downloads a zipped up file geodatabase from a download link. Updates data in a geodatabase from the zip file and 
@@ -41,7 +41,7 @@ Converts a table or feature class to a CSV file. Optionally adds in header and f
 
 ## Requirements
 
-* ArcGIS for Desktop 10.0+
+* ArcGIS for Desktop 10.1+
 * For Remote Server Data Update, ArcGIS for Server 10.1+
 * For Remote Server Data Update, FTP server setup on server
 * For Remote Server Data Update tool, setup DataUpdateFromZip tool as Geoprocessing service with these parameters:
