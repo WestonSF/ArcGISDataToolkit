@@ -1,4 +1,4 @@
-# Data Update
+# ArcGIS Data Toolkit
 
 The data update toolset contains a number of tools and scripts to update data from a varierty of different sources. The following tools are available:
 
@@ -27,6 +27,9 @@ setup on the server and one to be setup where the data is located).
 * WebDataUpload will zip up datasets and upload them to the server via FTP
 * DataUpdateFromZip will unzip datasets and load them into the database on the server
 * WebDataUpload is the main script to be run and will call the DataUpdateFromZip tool via a geoprocessing service
+
+#### Convert to CSV
+Converts a table or feature class to a CSV file. Optionally adds in header and footer records also.
 
 
 ## Features
