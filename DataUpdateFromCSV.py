@@ -21,8 +21,8 @@ import string
 arcpy.env.overwriteOutput = True
 
 # Set variables
-logInfo = "true"
-logFile = r"C:\Data\Tools & Scripts\Data Upload & Update\Logs\DataUpdateFromCSV.log"
+logInfo = "false"
+logFile = r""
 sendEmail = "false"
 emailTo = ""
 emailUser = ""

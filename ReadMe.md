@@ -35,27 +35,35 @@ Converts a table or feature class to a CSV file. Optionally adds in header and f
 ## Features
 
 * Automate the data update process.
-* Get data from a varierty of sources.
+* Get data from zip or CSV and import into database.
 * Easy way to update data on web server.
 * Two options - New or existing.
 
 ## Requirements
 
+* ArcGIS for Desktop 10.0+
+	* Update from Zip
+
 * ArcGIS for Desktop 10.1+
-* For Remote Server Data Update, ArcGIS for Server 10.1+
-* For Remote Server Data Update, FTP server setup on server
-* For Remote Server Data Update tool, setup DataUpdateFromZip tool as Geoprocessing service with these parameters:
-	* Log File is a constant (defined when publishing tool)
-	* Database is a constant (defined when publishing tool)
-	* Update folder is a constant (defined when publishing tool)
-	* Update mode can be existing or new (defined when running)
+	* Update from Link
+	* Update from CSV
+	* Web Data Upload
+
+* Remote Server Data Update Requirements
+	* ArcGIS for Server 10.1+
+	* FTP server setup on server
+	* Setup DataUpdateFromZip tool as Geoprocessing service with these parameters:
+		* Log File is a constant (defined when publishing tool)
+		* Database is a constant (defined when publishing tool)
+		* Update folder is a constant (defined when publishing tool)
+		* Update mode can be existing or new (defined when running)
 
 
 ## Installation Instructions
 
 * Setup a script to run as a scheduled task
 	* Fork and then clone the repository or download the .zip file. 
-	* Edit the batch file to be automated and change the parameters to suit your environment.
+	* Edit the [batch file](/Examples) to be automated and change the parameters to suit your environment.
 	* Open Windows Task Scheduler and setup a new basic task.
 	* Set the task to execute the batch file at a specified time.
 
@@ -80,7 +88,7 @@ Anyone and everyone is welcome to contribute.
 
 
 ## Licensing
-Copyright 2013 Shaun Weston
+Copyright 2014 - Shaun Weston
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

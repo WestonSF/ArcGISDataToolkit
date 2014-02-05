@@ -7,10 +7,10 @@
 #             New Mode - Copies all datasets from the geodatabase and loads into geodatabase. Requires
 #             no locks on geodatabase.
 #             NOTE: If using ArcGIS 10.0 need to set scratch workspace as folder.
-# Author:     Shaun Weston (shaun.weston@splicegroup.co.nz)
+# Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    31/05/2013
 # Last Updated:    18/11/2013
-# Copyright:   (c) Splice Group
+# Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0+
 # Python Version:   2.6/2.7
 #--------------------------------
@@ -29,6 +29,11 @@ arcpy.env.overwriteOutput = True
 logInfo = "false"
 logFile = r""
 sendEmail = "false"
+emailTo = ""
+emailUser = ""
+emailPassword = ""
+emailSubject = ""
+emailMessage = ""
 output = None
 
 # Start of main function
@@ -164,25 +169,20 @@ def loggingFunction(logFile,result,info):
         # Send an email
         if sendEmail == "true":
             arcpy.AddMessage("Sending email...")
-            # Receiver email address
-            to = ''
-            # Sender email address and password
-            gmail_user = ''
-            gmail_pwd = ''
             # Server and port information
             smtpserver = smtplib.SMTP("smtp.gmail.com",587) 
             smtpserver.ehlo()
             smtpserver.starttls() 
             smtpserver.ehlo
-            # Login
-            smtpserver.login(gmail_user, gmail_pwd)
+            # Login with sender email address and password
+            smtpserver.login(emailUser, emailPassword)
             # Email content
-            header = 'To:' + to + '\n' + 'From: ' + gmail_user + '\n' + 'Subject:Error \n'
-            msg = header + '\n' + '' + '\n' + '\n' + info
+            header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
+            message = header + '\n' + emailMessage + '\n' + '\n' + info
             # Send the email and close the connection
-            smtpserver.sendmail(gmail_user, to, msg)
+            smtpserver.sendmail(emailUser, emailTo, message)
             smtpserver.close()                
-# End of logging function    
+# End of logging function 
 
 # This test allows the script to be used from the operating
 # system command prompt (stand-alone), in a Python IDE, 
