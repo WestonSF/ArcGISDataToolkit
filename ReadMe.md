@@ -44,11 +44,14 @@ Converts a table or feature class to a CSV file. Optionally adds in header and f
 * Get data from zip or CSV and import into database.
 * Easy way to update data on web server.
 * Two options - New or existing.
+* Backup data to Google Drive
+
 
 ## Requirements
 
 * ArcGIS for Desktop 10.0+
 	* Update from Zip
+	* Google Drive Upload
 
 * ArcGIS for Desktop 10.1+
 	* Update from Link
@@ -67,11 +70,20 @@ Converts a table or feature class to a CSV file. Optionally adds in header and f
 
 ## Installation Instructions
 
+* Google Drive Upload
+	* Install Google API python library
+        	* Install setuptools on Windows - Get 32/64 bit versions [here](http://www.lfd.uci.edu/~gohlke/pythonlibs/#distribute) 
+        	* Then this to install in command line - C:\Python27\ArcGIS10.2\Scripts\easy_install-2.7.exe --upgrade google-api-python-client
+	* Setup a Google project [here](https://cloud.google.com/console/project)
+	* Create new client ID to get the client ID and client secret
+	* Go to this link and replace {CLIENTID} with the ID generated in the above step - https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id={CLIENTID}&access_type=offline
+
 * Setup a script to run as a scheduled task
 	* Fork and then clone the repository or download the .zip file. 
 	* Edit the [batch file](/Examples) to be automated and change the parameters to suit your environment.
 	* Open Windows Task Scheduler and setup a new basic task.
 	* Set the task to execute the batch file at a specified time.
+
 
 ## Resources
 
@@ -81,6 +93,7 @@ Converts a table or feature class to a CSV file. Optionally adds in header and f
 * [Blog](http://westonelli.wordpress.com)
 * [ArcGIS API for Javascript](https://developers.arcgis.com/en/javascript)
 * [Python for ArcGIS](http://resources.arcgis.com/en/communities/python)
+* [Google Drive SDK](https://developers.google.com/drive/web)
 
 
 ## Issues
