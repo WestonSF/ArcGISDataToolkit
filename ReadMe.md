@@ -16,8 +16,11 @@ update the datasets with the same name in the specified geodatabase.
 Updates data in a geodatabase from a CSV file. Will get the latest zip CSV from update folder and 
 updates the dataset with the same name in the specified geodatabase.
 
-#### Google Drive Upload (IN DEVELOPMENT)
-Uploads a specified file to Google Drive account.
+#### Google Drive Upload
+Uploads a specified file to Google Drive account. Need to get an authorization code manually first from here:
+* https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id={CLIENTID}&access_type=offline
+
+There are then two options - Generate Credentials File or not. You will need to generate the credentials file the first time this is run.
 
 #### Web Data Upload
 Copies data to be replicated into geodatabase and zips this up. Zip file is then uploaded to FTP site 

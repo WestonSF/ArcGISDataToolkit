@@ -1,12 +1,12 @@
 #-------------------------------------------------------------
 # Name:       Google Drive Upload
-# Purpose:    Uploads a specified file to Google Drive account.
-
-# Need to create credentials file first - https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id={CLIENTID}&access_type=offline
-
+# Purpose:    Uploads a specified file to Google Drive account. Need to get an authorization code manually first from here:
+#             https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id={CLIENTID}&access_type=offline
+#             There are then two options - Generate Credentials File or not. You will need to generate the credentials file
+#             the first time this is run.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    14/02/2014
-# Last Updated:    14/04/2014
+# Last Updated:    24/04/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0+
 # Python Version:   2.7
@@ -18,12 +18,10 @@ import sys
 import logging
 import smtplib
 import arcpy
-
 import httplib2
-import pprint
-
 from apiclient.discovery import build
 from apiclient.http import MediaFileUpload
+from apiclient import errors
 from oauth2client.client import OAuth2WebServerFlow
 from oauth2client.file import Storage
 
@@ -42,7 +40,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(uploadFile,clientID,clientSecret,authorisationCode): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(uploadFile,generateCredentialsFile,inputCredentialsFile,clientID,clientSecret,authorisationCode,outputCredentialsFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -52,60 +50,100 @@ def mainFunction(uploadFile,clientID,clientSecret,authorisationCode): # Get para
             logger.info("Process started.")
             
         # --------------------------------------- Start of code --------------------------------------- #
-        # Set the working directory as the scratch folder
-        os.chdir(arcpy.env.scratchFolder)        
 
-        # Check https://developers.google.com/drive/scopes for all available scopes
-        oAuthScope = 'https://www.googleapis.com/auth/drive'
+        # If need to generate credentials file first
+        if (generateCredentialsFile == "true"):
+            # Set the credentials file to output
+            inputCredentialsFile = outputCredentialsFile
+                
+        # Get the folder for the credentials file
+        credentialsFolder = os.path.dirname(inputCredentialsFile)
+        # Set the working directory as the credentials folder
+        os.chdir(credentialsFolder)
 
-        # Redirect URI for installed apps
-        redirectURI = 'urn:ietf:wg:oauth:2.0:oob'
-
-        # Path to the crendentials
-        credFileName = 'GoogleDriveCredentials'
+        credentialsFile = os.path.basename(inputCredentialsFile)  
 
         # For storing token
-        storage = Storage(credFileName)
+        storage = Storage(credentialsFile)
+        
+        # If need to generate credentials file first
+        if (generateCredentialsFile == "true"):
+            # Check https://developers.google.com/drive/scopes for all available scopes
+            oAuthScope = 'https://www.googleapis.com/auth/drive'
 
-        if not storage.get():        
+            # Redirect URI for installed apps
+            redirectURI = 'urn:ietf:wg:oauth:2.0:oob'
+
             # Run through the OAuth flow and retrieve authorization code
             flow = OAuth2WebServerFlow(clientID, clientSecret, oAuthScope, redirectURI)
             authorize_url = flow.step1_get_authorize_url()
             credentials = flow.step2_exchange(authorisationCode)
-
-            # Storing access token and a refresh token in CRED_FILENAME
-            arcpy.AddMessage("Storing credentials file here - " + os.getcwd())
-            # Logging
-            if (enableLogging == "true"):
-                logger.info("Storing credentials file here - " + os.getcwd())           
+    
             storage.put(credentials)
-        else:
-            # Getting token credentials
-            arcpy.AddMessage("Using credentials file stored here - " + os.path.join(os.getcwd(), credFileName))
+            
+            # Storing access token and a refresh token in credentials file
+            arcpy.AddMessage("Stored credentials file here - " + os.getcwd())
             # Logging
             if (enableLogging == "true"):
-                logger.info("Using credentials file stored here - " + os.path.join(os.getcwd(), credFileName))              
+                logger.info("Stored credentials file here - " + os.getcwd())   
+            
+        # Else already have the crdentials file
+        else:         
+            # Getting token credentials
+            arcpy.AddMessage("Using credentials file stored here - " + os.path.join(os.getcwd(), credentialsFile))
+            # Logging
+            if (enableLogging == "true"):
+                logger.info("Using credentials file stored here - " + os.path.join(os.getcwd(), credentialsFile))
+                
             credentials = storage.get()
+            
 
         # Create an httplib2.Http object and authorize it with our credentials
         http = httplib2.Http()
         http = credentials.authorize(http)
+        # Drive API service instance
         drive_service = build('drive', 'v2', http=http)
 
-        # Insert a file
-        media_body = MediaFileUpload(uploadFile, resumable=False)
-        body = {
-            'title': os.path.basename(uploadFile)
-        }
+        # Query the list of files to find if one is already there with the same title
+        filesList = []
+        files = drive_service.files().list(q="title='" + os.path.basename(uploadFile) + "'").execute()
+        filesList.extend(files['items'])
 
-        # Upload the file
-        file = drive_service.files().insert(body=body, media_body=media_body).execute()
-        pprint.pprint(file)
-        arcpy.AddMessage("Successfully uploaded file to Google Drive - " + uploadFile)
-        # Logging
-        if (enableLogging == "true"):
-            logger.info("Successfully uploaded file to Google Drive - " + uploadFile)
+        # If a file has been found, overwrite it
+        if (len(filesList) > 0):
+            # Get the file ID
+            fileID = filesList[0]['id']
+
+            # Insert a file
+            media_body = MediaFileUpload(uploadFile, resumable=False)
+            body = {
+                'title': os.path.basename(uploadFile)
+            }
+
+            # Update the file
+            updatedFile = drive_service.files().update(fileId=fileID,body=uploadFile,media_body=media_body).execute()
+
+            arcpy.AddMessage("Successfully uploaded file to Google Drive - " + uploadFile)
+            # Logging
+            if (enableLogging == "true"):
+                logger.info("Successfully uploaded file to Google Drive - " + uploadFile)
+                
+        # Otherwise, create new one
+        else:    
+            # Insert a file
+            media_body = MediaFileUpload(uploadFile, resumable=False)
+            body = {
+                'title': os.path.basename(uploadFile)
+            }
+
+            # Upload the file
+            newFile = drive_service.files().insert(body=body, media_body=media_body).execute()
             
+            arcpy.AddMessage("Successfully uploaded file to Google Drive - " + uploadFile)
+            # Logging
+            if (enableLogging == "true"):
+                logger.info("Successfully uploaded file to Google Drive - " + uploadFile)
+                
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
