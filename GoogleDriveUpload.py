@@ -61,11 +61,14 @@ def mainFunction(uploadFileFolder,fileName,generateCredentialsFile,inputCredenti
 
             # If file name provided
             if (len(fileName) > 0):
-                zippedFolder = zipfile.ZipFile(os.path.join(arcpy.env.scratchFolder, fileName + ".zip"), "w")
+                zipFile = os.path.join(arcpy.env.scratchFolder, fileName + ".zip")
+                zippedFolder = zipfile.ZipFile(zipFile, "w")
             # Otherwise use default name
             else:
-                zippedFolder = zipfile.ZipFile(os.path.join(arcpy.env.scratchFolder, "Data.zip"), "w")
-                
+                zipFile = os.path.join(arcpy.env.scratchFolder, "Data.zip")
+                zippedFolder = zipfile.ZipFile(zipFile, "w")
+
+            
             # Zip up the folder
             root_len = len(os.path.abspath(str(uploadFileFolder)))
             for root, dirs, files in os.walk(str(uploadFileFolder)):
@@ -77,7 +80,7 @@ def mainFunction(uploadFileFolder,fileName,generateCredentialsFile,inputCredenti
             zippedFolder.close()
 
             # Update the file to point at the zipped file
-            uploadFileFolder = os.path.join(arcpy.env.scratchFolder, "Data.zip")
+            uploadFileFolder = zipFile
         
         # If need to generate credentials file first
         if (generateCredentialsFile == "true"):

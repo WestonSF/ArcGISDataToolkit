@@ -74,8 +74,7 @@ Converts a table or feature class to a CSV file. Optionally adds in header and f
 
 * Google Drive Upload
 	* Install Google API python library
-		* Install setuptools on Windows - Get 32/64 bit versions [here](http://www.lfd.uci.edu/~gohlke/pythonlibs/#distribute) 
-		* Then this to install in command line - C:\Python27\ArcGIS10.2\Scripts\easy_install-2.7.exe --upgrade google-api-python-client
+		* Download library from [here](https://code.google.com/p/google-api-python-client) 
 	* Setup a Google project [here](https://cloud.google.com/console/project)
 	* Create new client ID to get the client ID and client secret
 	* Go to this link and replace {CLIENTID} with the ID generated in the above step - https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id={CLIENTID}&access_type=offline

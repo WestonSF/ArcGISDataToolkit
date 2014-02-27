@@ -1,10 +1,10 @@
 REM ----- Google Drive Upload -----
-c:\python27\arcgis10.2\python "C:\Development\Projects\ArcGIS Data Toolkit\GoogleDriveUpload.py" ^
- "C:\Downloads\File.txt" ^
+c:\python27\arcgis10.2\python "C:\Data\Tools & Scripts\ArcGIS Data Toolkit\GoogleDriveUpload.py" ^
+ "C:\Data\Backups" ^
+ "GISBackup" ^
  "false" ^
- "C:\Downloads\GoogleDriveCredentials" ^
+ "C:\Data\Tools & Scripts\ArcGIS Data Toolkit\GoogleDriveCredentials" ^
  "" ^
  "" ^
  "" ^
  ""
-
