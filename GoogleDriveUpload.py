@@ -1,6 +1,6 @@
 #-------------------------------------------------------------
 # Name:       Google Drive Upload
-# Purpose:    Uploads a specified file to Google Drive account. Need to get an authorization code manually first from here:
+# Purpose:    Uploads a specified file or folder to Google Drive account. Need to get an authorization code manually first from here:
 #             https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id={CLIENTID}&access_type=offline
 #             There are then two options - Generate Credentials File or not. You will need to generate the credentials file
 #             the first time this is run.
@@ -19,6 +19,7 @@ import logging
 import smtplib
 import arcpy
 import httplib2
+import zipfile
 from apiclient.discovery import build
 from apiclient.http import MediaFileUpload
 from apiclient import errors
@@ -40,7 +41,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(uploadFile,generateCredentialsFile,inputCredentialsFile,clientID,clientSecret,authorisationCode,outputCredentialsFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(uploadFileFolder,generateCredentialsFile,inputCredentialsFile,clientID,clientSecret,authorisationCode,outputCredentialsFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -51,6 +52,28 @@ def mainFunction(uploadFile,generateCredentialsFile,inputCredentialsFile,clientI
             
         # --------------------------------------- Start of code --------------------------------------- #
 
+        # If input is a folder  
+        if os.path.isdir(uploadFileFolder):
+            arcpy.AddMessage("Zipping up data in folder - " + uploadFileFolder)
+            # Logging
+            if (enableLogging == "true"):
+                logger.info("Zipping up data in folder - " + uploadFileFolder)
+                
+            zippedFolder = zipfile.ZipFile(os.path.join(arcpy.env.scratchFolder, "Data.zip"), "w")
+            
+            # Zip up the folder
+            root_len = len(os.path.abspath(str(uploadFileFolder)))
+            for root, dirs, files in os.walk(str(uploadFileFolder)):
+              archive_root = os.path.abspath(root)[root_len:]
+              for f in files:
+                fullpath = os.path.join(root, f)
+                archive_name = os.path.join(archive_root, f)
+                zippedFolder.write(fullpath, archive_name)
+            zippedFolder.close()
+
+            # Update the file to point at the zipped file
+            uploadFileFolder = os.path.join(arcpy.env.scratchFolder, "Data.zip")
+        
         # If need to generate credentials file first
         if (generateCredentialsFile == "true"):
             # Set the credentials file to output
@@ -78,10 +101,10 @@ def mainFunction(uploadFile,generateCredentialsFile,inputCredentialsFile,clientI
             flow = OAuth2WebServerFlow(clientID, clientSecret, oAuthScope, redirectURI)
             authorize_url = flow.step1_get_authorize_url()
             credentials = flow.step2_exchange(authorisationCode)
-    
-            storage.put(credentials)
             
             # Storing access token and a refresh token in credentials file
+            storage.put(credentials)
+            
             arcpy.AddMessage("Stored credentials file here - " + os.getcwd())
             # Logging
             if (enableLogging == "true"):
@@ -106,7 +129,7 @@ def mainFunction(uploadFile,generateCredentialsFile,inputCredentialsFile,clientI
 
         # Query the list of files to find if one is already there with the same title
         filesList = []
-        files = drive_service.files().list(q="title='" + os.path.basename(uploadFile) + "'").execute()
+        files = drive_service.files().list(q="title='" + os.path.basename(uploadFileFolder) + "'").execute()
         filesList.extend(files['items'])
 
         # If a file has been found, overwrite it
@@ -115,34 +138,34 @@ def mainFunction(uploadFile,generateCredentialsFile,inputCredentialsFile,clientI
             fileID = filesList[0]['id']
 
             # Insert a file
-            media_body = MediaFileUpload(uploadFile, resumable=False)
+            media_body = MediaFileUpload(uploadFileFolder, resumable=False)
             body = {
-                'title': os.path.basename(uploadFile)
+                'title': os.path.basename(uploadFileFolder)
             }
 
             # Update the file
-            updatedFile = drive_service.files().update(fileId=fileID,body=uploadFile,media_body=media_body).execute()
+            updatedFile = drive_service.files().update(fileId=fileID,body=uploadFileFolder,media_body=media_body).execute()
 
-            arcpy.AddMessage("Successfully uploaded file to Google Drive - " + uploadFile)
+            arcpy.AddMessage("Successfully uploaded file to Google Drive - " + uploadFileFolder)
             # Logging
             if (enableLogging == "true"):
-                logger.info("Successfully uploaded file to Google Drive - " + uploadFile)
+                logger.info("Successfully uploaded file to Google Drive - " + uploadFileFolder)
                 
         # Otherwise, create new one
         else:    
             # Insert a file
-            media_body = MediaFileUpload(uploadFile, resumable=False)
+            media_body = MediaFileUpload(uploadFileFolder, resumable=False)
             body = {
-                'title': os.path.basename(uploadFile)
+                'title': os.path.basename(uploadFileFolder)
             }
 
             # Upload the file
             newFile = drive_service.files().insert(body=body, media_body=media_body).execute()
             
-            arcpy.AddMessage("Successfully uploaded file to Google Drive - " + uploadFile)
+            arcpy.AddMessage("Successfully uploaded file to Google Drive - " + uploadFileFolder)
             # Logging
             if (enableLogging == "true"):
-                logger.info("Successfully uploaded file to Google Drive - " + uploadFile)
+                logger.info("Successfully uploaded file to Google Drive - " + uploadFileFolder)
                 
         # --------------------------------------- End of code --------------------------------------- #  
             
