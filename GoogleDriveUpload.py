@@ -1,7 +1,8 @@
 #-------------------------------------------------------------
 # Name:       Google Drive Upload
-# Purpose:    Uploads a specified file or folder to Google Drive account. Need to get an authorization code manually first from here:
-#             https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id={CLIENTID}&access_type=offline
+# Purpose:    Uploads a specified file or folder to Google Drive account.
+#             Need to generate keys first from here: https://cloud.google.com/console/project 
+#             Then need authorisation code from here: https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id={CLIENTID}&access_type=offline
 #             There are then two options - Generate Credentials File or not. You will need to generate the credentials file
 #             the first time this is run.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
@@ -208,9 +209,9 @@ def mainFunction(uploadFileFolder,generateCredentialsFile,inputCredentialsFile,c
         # Build and show the error message
         for i in range(len(e.args)):
             if (i == 0):
-                errorMessage = e.args[i]
+                errorMessage = str(e.args[i])
             else:
-                errorMessage = errorMessage + " " + e.args[i]
+                errorMessage = errorMessage + " " + str(e.args[i])
         arcpy.AddError(errorMessage)              
         # Logging
         if (enableLogging == "true"):
