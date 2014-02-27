@@ -1,8 +1,7 @@
 #-------------------------------------------------------------
 # Name:       Google Drive Upload
-# Purpose:    Uploads a specified file or folder to Google Drive account.
-#             Need to generate keys first from here: https://cloud.google.com/console/project 
-#             Then need authorisation code from here: https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id={CLIENTID}&access_type=offline
+# Purpose:    Uploads a specified file or folder to Google Drive account. Need to get an authorization code manually first from here:
+#             https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id={CLIENTID}&access_type=offline
 #             There are then two options - Generate Credentials File or not. You will need to generate the credentials file
 #             the first time this is run.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
@@ -42,7 +41,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(uploadFileFolder,generateCredentialsFile,inputCredentialsFile,clientID,clientSecret,authorisationCode,outputCredentialsFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(uploadFileFolder,fileName,generateCredentialsFile,inputCredentialsFile,clientID,clientSecret,authorisationCode,outputCredentialsFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -59,9 +58,14 @@ def mainFunction(uploadFileFolder,generateCredentialsFile,inputCredentialsFile,c
             # Logging
             if (enableLogging == "true"):
                 logger.info("Zipping up data in folder - " + uploadFileFolder)
+
+            # If file name provided
+            if (len(fileName) > 0):
+                zippedFolder = zipfile.ZipFile(os.path.join(arcpy.env.scratchFolder, fileName + ".zip"), "w")
+            # Otherwise use default name
+            else:
+                zippedFolder = zipfile.ZipFile(os.path.join(arcpy.env.scratchFolder, "Data.zip"), "w")
                 
-            zippedFolder = zipfile.ZipFile(os.path.join(arcpy.env.scratchFolder, "Data.zip"), "w")
-            
             # Zip up the folder
             root_len = len(os.path.abspath(str(uploadFileFolder)))
             for root, dirs, files in os.walk(str(uploadFileFolder)):
@@ -272,4 +276,3 @@ if __name__ == '__main__':
     argv = tuple(arcpy.GetParameterAsText(i)
         for i in range(arcpy.GetArgumentCount()))
     mainFunction(*argv)
-    
