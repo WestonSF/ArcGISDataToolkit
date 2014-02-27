@@ -62,11 +62,11 @@ def mainFunction(uploadFileFolder,fileName,generateCredentialsFile,inputCredenti
             # If file name provided
             if (len(fileName) > 0):
                 zipFile = os.path.join(arcpy.env.scratchFolder, fileName + ".zip")
-                zippedFolder = zipfile.ZipFile(zipFile, "w")
+                zippedFolder = zipfile.ZipFile(zipFile, "w", allowZip64=True)
             # Otherwise use default name
             else:
                 zipFile = os.path.join(arcpy.env.scratchFolder, "Data.zip")
-                zippedFolder = zipfile.ZipFile(zipFile, "w")
+                zippedFolder = zipfile.ZipFile(zipFile, "w", allowZip64=True)
 
             
             # Zip up the folder
