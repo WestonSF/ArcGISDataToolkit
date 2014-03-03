@@ -70,7 +70,7 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                             # Add in header information   
                             headerRow = []                               
                             headerRow.append("H")
-                            headerRow.append(describeDataset.name + ".csv" + "_" + datetime.datetime.now().strftime("Y%m%d%H%M%S") + ".gz")                                
+                            headerRow.append(describeDataset.name + ".csv" + "_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".gz")                                
                             writer.writerow(headerRow)
 
                         # Set data delimiter
@@ -111,7 +111,7 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                             # Add in footer information
                             footerRow = []                             
                             footerRow.append("F")
-                            footerRow.append(describeDataset.name + ".csv" + "_" + datetime.datetime.now().strftime("Y%m%d%H%M%S") + ".gz")
+                            footerRow.append(describeDataset.name + ".csv" + "_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".gz")
                             rowCount = arcpy.GetCount_management(featureClass)
                             footerRow.append(rowCount)
                             writer.writerow(footerRow)
@@ -139,7 +139,7 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                             # Add in header information   
                             headerRow = []                               
                             headerRow.append("H")
-                            headerRow.append(describeDataset.name + ".csv" + "_" + datetime.datetime.now().strftime("Y%m%d%H%M%S") + ".gz")                                
+                            headerRow.append(describeDataset.name + ".csv" + "_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".gz")                                
                             writer.writerow(headerRow)
 
                         # Set data delimiter
@@ -180,7 +180,7 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                             # Add in footer information
                             footerRow = []                             
                             footerRow.append("F")
-                            footerRow.append(describeDataset.name + ".csv" + "_" + datetime.datetime.now().strftime("Y%m%d%H%M%S") + ".gz")
+                            footerRow.append(describeDataset.name + ".csv" + "_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".gz")
                             rowCount = arcpy.GetCount_management(table)
                             footerRow.append(rowCount)
                             writer.writerow(footerRow)                            
