@@ -104,7 +104,7 @@ def mainFunction(updateFolder,updateMode,geodatabase): # Get parameters from Arc
                else:
                     # If dataset exists in geodatabase, delete features and load in new data
                     if arcpy.Exists(os.path.join(geodatabase, eachTable)):
-                        arcpy.DeleteFeatures_management(os.path.join(geodatabase, eachTable))
+                        arcpy.DeleteRows_management(os.path.join(geodatabase, eachTable))
                         arcpy.Append_management(os.path.join(arcpy.env.workspace, eachTable), os.path.join(geodatabase, eachTable), "NO_TEST", "", "")
                     else:
                         # Log warning

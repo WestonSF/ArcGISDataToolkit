@@ -39,6 +39,12 @@ setup on the server and one to be setup where the data is located).
 #### Convert to CSV
 Converts a table or feature class to a CSV file. Optionally adds in header and footer records also.
 
+#### Map Service Download
+Downloads the data used in a map service layer by querying the json and converting to a feature class.
+
+#### WFS Layer Download
+Downloads the data used in a WFS layer. 
+
 
 ## Features
 
@@ -47,6 +53,7 @@ Converts a table or feature class to a CSV file. Optionally adds in header and f
 * Easy way to update data on web server.
 * Two options - New or existing.
 * Backup data to Google Drive
+* Download data from a map service or WFS layer.
 
 
 ## Requirements
@@ -59,6 +66,8 @@ Converts a table or feature class to a CSV file. Optionally adds in header and f
 	* Update from Link
 	* Update from CSV
 	* Web Data Upload
+	* Map Service Download
+	* WFS Layer Download
 
 * Remote Server Data Update Requirements
 	* ArcGIS for Server 10.1+
