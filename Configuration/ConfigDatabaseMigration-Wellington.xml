@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<fields>
+		<field>
+			<placeholder>PARKS_DATA_ACCESS\coastal_weeds</placeholder>
+			<fieldName>PARKS_DATA_ACCESS\coastal_weeds</fieldName>
+		</field>
+		<field>
+			<placeholder>PARKS_DATA_ACCESS\parks_no_spray</placeholder>
+			<fieldName>PARKS_DATA_ACCESS\parks_no_spray</fieldName>
+		</field>
+		<field>
+			<placeholder>PARKS_DATA_ACCESS\parks_significant_trees</placeholder>
+			<fieldName>PARKS_DATA_ACCESS\parks_significant_trees</fieldName>
+		</field>
+		<field>
+			<placeholder>Roading\ParkingPoints</placeholder>
+			<fieldName>ParkingPoints</fieldName>
+		</field>
+		<field>
+			<placeholder>Rates</placeholder>
+			<fieldName>Rating</fieldName>
+		</field>
+	</fields>
+</configuration>

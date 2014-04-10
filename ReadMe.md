@@ -45,6 +45,9 @@ Downloads the data used in a map service layer by querying the json and converti
 #### WFS Layer Download
 Downloads the data used in a WFS layer. 
 
+#### Database Migration
+Copies data from one geodatabase to another using a CSV file to map dataset names as well as domains.
+
 
 ## Features
 
@@ -61,6 +64,7 @@ Downloads the data used in a WFS layer.
 * ArcGIS for Desktop 10.0+
 	* Update from Zip
 	* Google Drive Upload
+	* Database Migration
 
 * ArcGIS for Desktop 10.1+
 	* Update from Link
@@ -68,6 +72,7 @@ Downloads the data used in a WFS layer.
 	* Web Data Upload
 	* Map Service Download
 	* WFS Layer Download
+
 
 * Remote Server Data Update Requirements
 	* ArcGIS for Server 10.1+
