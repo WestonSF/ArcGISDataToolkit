@@ -15,6 +15,7 @@ import sys
 import logging
 import smtplib
 import arcpy
+import xml.etree.ElementTree as ET
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -41,22 +42,30 @@ def mainFunction(sourceGeodatabase,destinationGeodatabase,datasetsOption,configF
             logger.info("Process started.")
             
         # --------------------------------------- Start of code --------------------------------------- #
+
+        # If config file
+        configRoot = ""
+        if configFile:
+            # Convert config file to xml
+            configFileXML = ET.parse(configFile)    
+            # Import and reference the configuration file
+            configRoot = configFileXML.getroot()
         
         # Get a list of the feature datasets in the database
         arcpy.env.workspace = sourceGeodatabase
         featureDatasetList = arcpy.ListDatasets("", "Feature")
         # FUNCTION - Copy over these feature datasets
-        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configFile,featureDatasetList,"Feature Dataset")
+        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configRoot,featureDatasetList,"Feature Dataset")
         
         # Get a list of the feature classes in the database
         featureClassList = arcpy.ListFeatureClasses()
         # FUNCTION - Copy over these feature classes
-        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configFile,featureClassList,"Feature Class")
+        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configRoot,featureClassList,"Feature Class")
 
          # Get a list of the tables in the database
         tableList = arcpy.ListTables()
         # FUNCTION - Copy over these tables
-        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configFile,tableList,"Table")
+        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configRoot,tableList,"Table")
                 
 
         # --------------------------------------- End of code --------------------------------------- #  
@@ -118,15 +127,32 @@ def mainFunction(sourceGeodatabase,destinationGeodatabase,datasetsOption,configF
 
 
 # Copy datasets function
-def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configFile,datasetList,dataType):
+def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configRoot,datasetList,dataType):
     # Loop through the datasets
     for dataset in datasetList:
         # Change dataset name to be just name (remove user and schema if SDE database)
         splitDataset = dataset.split('.')
         dataset = splitDataset[-1]
 
+        # If configuration provided
+        if (configRoot):
+            # Setup the source and destination paths
+            sourceFeatureClassPath = os.path.join(sourceGeodatabase, dataset)
+            destinationFeatureClassPath = os.path.join(destinationGeodatabase, dataset)
+        
+            # Look through configuration file to see if source dataset is in there
+            for child in configRoot.find("datasets"):
+                # If dataset is in config file
+                if (dataset == child.find("source").text):
+                    # Change the destination path
+                    destinationFeatureClassPath = os.path.join(destinationGeodatabase, child.find("destination").text)
+                    arcpy.AddMessage("Changing dataset name from " + sourceFeatureClassPath + " to " + destinationFeatureClassPath)
+                        
         # If feature datasets
-        if (dataType == "Feature Dataset"):         
+        if (dataType == "Feature Dataset"):
+            # Store current dataset
+            currentDataset = dataset
+            
             # Get a list of the feature classes in the feature dataset
             featureClassList = arcpy.ListFeatureClasses("","",dataset)
             
@@ -140,6 +166,22 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configF
                 sourceFeatureClassPath = os.path.join(sourceGeodatabase + "\\" + dataset, featureClass)
                 destinationFeatureClassPath = os.path.join(destinationGeodatabase + "\\" + dataset, featureClass)
 
+                # If configuration provided
+                if (configRoot):                
+                    # Look through configuration file to see if source dataset is in there
+                    for child in configRoot.find("datasets"):
+                        # If dataset is in config file
+                        if ((dataset + "\\" + featureClass) == child.find("source").text):
+                            # Change the destination path
+                            destinationFeatureClassPath = os.path.join(destinationGeodatabase, child.find("destination").text)
+                            arcpy.AddMessage("Changing dataset name from " + sourceFeatureClassPath + " to " + destinationFeatureClassPath)
+
+                            # Change the destination feature dataset name
+                            splitDataset = child.find("destination").text.split('\\')
+                            # If split has occured
+                            if (len(splitDataset) > 1):
+                                dataset = splitDataset[0]
+                        
                 # If feature dataset already exists in destination database
                 if arcpy.Exists(os.path.join(destinationGeodatabase, dataset)):
                     # If feature class already exists in destination database
@@ -153,28 +195,19 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configF
                     arcpy.CreateFeatureDataset_management(destinationGeodatabase, dataset, sourceFeatureClassPath)
                     # Copy over feature class
                     arcpy.CopyFeatures_management(sourceFeatureClassPath, destinationFeatureClassPath, "", "0", "0", "0")
+
+                # Change dataset name back to current dataset
+                dataset = currentDataset
         
         # If feature classes
         elif (dataType == "Feature Class"):               
-            # If copying all datasets
-            if (datasetsOption == "All"):
-                # Setup the source and destination paths  
-                sourceFeatureClassPath = os.path.join(sourceGeodatabase, dataset)
-                destinationFeatureClassPath = os.path.join(destinationGeodatabase, dataset)
-                
-                # Copy over feature class                
-                arcpy.CopyFeatures_management(sourceFeatureClassPath, destinationFeatureClassPath, "", "0", "0", "0")
+            # Copy over feature class                
+            arcpy.CopyFeatures_management(sourceFeatureClassPath, destinationFeatureClassPath, "", "0", "0", "0")
 
         # If tables
         elif (dataType == "Table"):
-            # If copying all datasets
-            if (datasetsOption == "All"):
-                # Setup the source and destination paths  
-                sourceFeatureClassPath = os.path.join(sourceGeodatabase, dataset)
-                destinationFeatureClassPath = os.path.join(destinationGeodatabase, dataset)                
-
-                # Copy over table 
-                arcpy.CopyRows_management(sourceFeatureClassPath, destinationFeatureClassPath, "")
+            # Copy over table 
+            arcpy.CopyRows_management(sourceFeatureClassPath, destinationFeatureClassPath, "")
 
                 
 # Start of set logging function
