@@ -4,18 +4,22 @@
 		<dataset>
 			<source>PARKS_DATA_ACCESS\coastal_weeds</source>
 			<destination>PARKS_DATA_ACCESS_coastal_weeds</destination>
+			<version>yes</version>
 		</dataset>
 		<dataset>
 			<source>PARKS_DATA_ACCESS\Capture_Polygon</source>
 			<destination>PARKS_DATA_ACCESS_Capture_Polygon</destination>
+			<version>yes</version>
 		</dataset>
 		<dataset>
 			<source>Roading\ParkingPoints</source>
 			<destination>ParkingPointsNew</destination>
+			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>Rates</source>
 			<destination>Rating</destination>
+			<version>yes</version>
 		</dataset>
 	</datasets>
 </configuration>

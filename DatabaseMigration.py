@@ -1,9 +1,9 @@
 #-------------------------------------------------------------
 # Name:       Database Migration
-# Purpose:    Copies data from one geodatabase to another using a CSV file to map dataset names as well as domains.       
+# Purpose:    Copies data from one geodatabase to another using a CSV file to map dataset names.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    10/04/2014
-# Last Updated:    10/04/2014
+# Last Updated:    13/04/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0/10.1/10.2
 # Python Version:   2.7
