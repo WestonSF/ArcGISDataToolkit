@@ -3,7 +3,7 @@
 # Purpose:    Copies data from one geodatabase to another using a CSV file to map dataset names.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    10/04/2014
-# Last Updated:    13/04/2014
+# Last Updated:    14/04/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0/10.1/10.2
 # Python Version:   2.7
@@ -132,6 +132,7 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
     for dataset in datasetList:
         # Dataset in config variable 
         datasetInConfig = "false"
+        versionDataset = "false"
         
         # Change dataset name to be just name (remove user and schema if SDE database)
         splitDataset = dataset.split('.')
@@ -151,6 +152,10 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                     # Change the destination path
                     destinationDatasetPath = os.path.join(destinationGeodatabase, child.find("destination").text)
                     arcpy.AddMessage("Changing dataset name from " + sourceDatasetPath + " to " + destinationDatasetPath + "...")
+
+                    # If versioning the dataset
+                    if (child.find("version").text == "yes"):
+                        versionDataset = "true"
                         
         # If feature datasets
         if (dataType == "Feature Dataset"):
@@ -192,6 +197,11 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                                 dataset = splitDataset[0]
                             else:
                                 needFeatureDataset = "false"
+                                
+                            # If versioning the dataset
+                            if (child.find("version").text == "yes"):
+                                versionDataset = "true"
+                                
                         
                 # If feature dataset already exists in destination database
                 if arcpy.Exists(os.path.join(destinationGeodatabase, dataset)):
@@ -204,6 +214,10 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                         # Copy over feature class
                         arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")                              
                         arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
+                        if (versionDataset == "true"):
+                            arcpy.AddMessage("Versioning dataset - " + os.path.join(destinationGeodatabase, dataset) + "...")
+                            arcpy.RegisterAsVersioned_management(os.path.join(destinationGeodatabase, dataset), "NO_EDITS_TO_BASE")
+                    
                 # Otherwise create the feature dataset first
                 else:
                     # Copy over dataset if necessary                    
@@ -214,10 +228,14 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                         # Copy over feature class
                         arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")                        
                         arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
-
+                        if (versionDataset == "true"):
+                            arcpy.AddMessage("Versioning dataset - " + os.path.join(destinationGeodatabase, dataset) + "...")
+                            arcpy.RegisterAsVersioned_management(os.path.join(destinationGeodatabase, dataset), "NO_EDITS_TO_BASE")
+                    
                 # Change dataset name back to current dataset
                 dataset = currentDataset
-        
+                versionDataset = "false"
+                
         # If feature classes
         elif (dataType == "Feature Class"):
             # Copy over dataset if necessary                    
@@ -225,7 +243,10 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                 # Copy over feature class
                 arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")                      
                 arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
-
+                if (versionDataset == "true"):
+                    arcpy.AddMessage("Versioning dataset - " + destinationDatasetPath + "...")
+                    arcpy.RegisterAsVersioned_management(destinationDatasetPath, "NO_EDITS_TO_BASE")
+                            
         # If tables
         elif (dataType == "Table"):
             # Copy over dataset if necessary                    
@@ -233,8 +254,10 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                 # Copy over table
                 arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")                      
                 arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")
-
-                
+                if (versionDataset == "true"):
+                    arcpy.AddMessage("Versioning dataset - " + destinationDatasetPath + "...")
+                    arcpy.RegisterAsVersioned_management(destinationDatasetPath, "NO_EDITS_TO_BASE")
+                    
 # Start of set logging function
 def setLogging(logFile):
     # Create a logger

@@ -46,7 +46,12 @@ Downloads the data used in a map service layer by querying the json and converti
 Downloads the data used in a WFS layer. 
 
 #### Database Migration
-Copies data from one geodatabase to another using a CSV file to map dataset names as well as domains.
+Copies data from one geodatabase to another using a CSV file to map dataset names.  
+
+#### Database Contents To CSV
+Exports out the names of datasets in a geodatabase to a CSV file.
+
+#### Remove Duplicate Domains
 
 
 ## Features
