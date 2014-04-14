@@ -1,6 +1,6 @@
 #-------------------------------------------------------------
 # Name:       Database Migration
-# Purpose:    Copies data from one geodatabase to another using a CSV file to map dataset names.       
+# Purpose:    Copies data from one geodatabase to another using a XML file to map dataset names.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    10/04/2014
 # Last Updated:    14/04/2014
