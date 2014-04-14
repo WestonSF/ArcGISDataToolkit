@@ -65,8 +65,7 @@ def mainFunction(sourceGeodatabase,destinationGeodatabase,datasetsOption,configF
          # Get a list of the tables in the database
         tableList = arcpy.ListTables()
         # FUNCTION - Copy over these tables
-        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configRoot,tableList,"Table")
-                
+        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configRoot,tableList,"Table")            
 
         # --------------------------------------- End of code --------------------------------------- #  
             
@@ -170,7 +169,7 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                 # Dataset in config variable 
                 datasetInConfig = "false"
         
-                # Change feature dataset name to be just name (remove user and schema if SDE database)
+                # Change feature class name to be just name (remove user and schema if SDE database)
                 splitDataset = featureClass.split('.')
                 featureClass = splitDataset[-1]
                     

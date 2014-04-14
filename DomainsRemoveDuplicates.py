@@ -16,6 +16,7 @@ import sys
 import logging
 import smtplib
 import arcpy
+import xml.etree.ElementTree as ET
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -32,7 +33,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(geodatabase): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(geodatabase,configFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -42,6 +43,15 @@ def mainFunction(geodatabase): # Get parameters from ArcGIS Desktop tool by sepe
             logger.info("Process started.")
             
         # --------------------------------------- Start of code --------------------------------------- #
+
+        # If config file
+        configRoot = ""
+        if configFile:
+            # Convert config file to xml
+            configFileXML = ET.parse(configFile)    
+            # Import and reference the configuration file
+            configRoot = configFileXML.getroot()
+            
         # Get a list of assigned domains
         assignedDomains = []
         
@@ -49,18 +59,18 @@ def mainFunction(geodatabase): # Get parameters from ArcGIS Desktop tool by sepe
         arcpy.env.workspace = geodatabase
         featureDatasetList = arcpy.ListDatasets("", "Feature")
         # FUNCTION - Get the domains for these feature datasets
-        assignedDomains = assignedDomains + getDomains(featureDatasetList,"Feature Dataset")
+        assignedDomains = assignedDomains + getDomains(geodatabase,featureDatasetList,configRoot,"Feature Dataset")
         
         # Get a list of the feature classes in the database
         featureClassList = arcpy.ListFeatureClasses()
         # FUNCTION - Get the domains for these feature calsses
-        assignedDomains = assignedDomains + getDomains(featureClassList,"Feature Class")
+        assignedDomains = assignedDomains + getDomains(geodatabase,featureClassList,configRoot,"Feature Class")
 
          # Get a list of the tables in the database
         tableList = arcpy.ListTables()
         # FUNCTION - Get the domains for these tables
-        assignedDomains = assignedDomains + getDomains(featureClassList,"Table")
-
+        assignedDomains = assignedDomains + getDomains(geodatabase,featureClassList,configRoot,"Table")
+        
         # Get a list of domains on the geodatabase
         geodatabaseDomains = arcpy.da.ListDomains(geodatabase)      
         # For each of the domains
@@ -69,12 +79,13 @@ def mainFunction(geodatabase): # Get parameters from ArcGIS Desktop tool by sepe
             # Check it is being used by looking at the assigned domains list
             for assignedDomain in assignedDomains:
                 if (domain.name == assignedDomain):               
-                    usedDomainCount = usedDomainCount + 1
+                    usedDomainCount = usedDomainCount + 1                           
 
             # If domain is not being used            
             if (usedDomainCount == 0):
+                # Remove the domain from the geodatabase
                 arcpy.AddMessage("Removing domain " + domain.name + " as not being used...")
-                arcpy.DeleteDomain_management(geodatabase, domain.name)
+                arcpy.DeleteDomain_management(geodatabase, domain.name)              
         
         # --------------------------------------- End of code --------------------------------------- #  
             
@@ -134,11 +145,19 @@ def mainFunction(geodatabase): # Get parameters from ArcGIS Desktop tool by sepe
 # End of main function
 
 
-# Get a list of domains used in the database
-def getDomains(datasetList,dataType):
+# Get a list of domains used in the database and reassigns duplicates
+def getDomains(geodatabase,datasetList,configRoot,dataType):
     assignedDomains = []   
     # Loop through the datasets
     for dataset in datasetList:
+
+        # Change dataset name to be just name (remove user and schema if SDE database)
+        splitDataset = dataset.split('.')
+        dataset = splitDataset[-1]
+
+        # Setup the source and destination paths
+        sourceDatasetPath = os.path.join(geodatabase, dataset)
+        
         # If feature datasets
         if (dataType == "Feature Dataset"):
             # Get a list of the feature classes in the feature dataset
@@ -146,6 +165,14 @@ def getDomains(datasetList,dataType):
 
             # Loop through the feature classes in the feature dataset
             for featureClass in featureClassList:
+
+                # Change feature class name to be just name (remove user and schema if SDE database)
+                splitDataset = featureClass.split('.')
+                featureClass = splitDataset[-1]
+
+                # Setup the source and destination paths                
+                sourceDatasetPath = os.path.join(geodatabase + "\\" + dataset, featureClass)
+                
                 # List fields in feature class
                 fields = arcpy.ListFields(featureClass)
 
@@ -153,8 +180,22 @@ def getDomains(datasetList,dataType):
                 for field in fields:
                     # Check if field has domain
                     if field.domain != "":
-                        # Add the domain to the list
-                        assignedDomains.append(field.domain)
+                        # If configuration provided
+                        if (configRoot):
+                            domain = field.domain
+                            # Look through configuration file to see if domain exists
+                            for child in configRoot.find("domains"):
+                                  # If duplicate domain is in config file
+                                  if (field.domain == child.find("duplicate").text):
+                                      arcpy.AddMessage("Reassigning domain on feature class " + featureClass + " from " + field.domain + " to " + child.find("original").text + " as it is duplicated...")
+                                      # Re-assign domain to other domain
+                                      arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, child.find("original").text, "")
+                                      domain = child.find("original").text
+                            # Add the domain to the list
+                            assignedDomains.append(domain)        
+                        else:
+                            # Add the domain to the list
+                            assignedDomains.append(field.domain)                            
                         
         # If feature classes/tables
         else:       
@@ -165,9 +206,23 @@ def getDomains(datasetList,dataType):
             for field in fields:
                 # Check if field has domain
                 if field.domain != "":
-                    # Add the domain to the list
-                    assignedDomains.append(field.domain)
-
+                    # If configuration provided
+                    if (configRoot):
+                        domain = field.domain
+                        # Look through configuration file to see if domain exists
+                        for child in configRoot.find("domains"):
+                              # If duplicate domain is in config file
+                              if (field.domain == child.find("duplicate").text):
+                                  arcpy.AddMessage("Reassigning domain on feature class " + dataset + " from " + field.domain + " to " + child.find("original").text + " as it is duplicated...")
+                                  # Re-assign domain to other domain
+                                  arcpy.AssignDomainToField_management(geodatabase, field.name, child.find("original").text, "")
+                                  domain = child.find("original").text
+                        # Add the domain to the list
+                        assignedDomains.append(domain)                               
+                    else:
+                        # Add the domain to the list
+                        assignedDomains.append(field.domain)
+                            
     # Return a list of assigned domains
     return assignedDomains
         
