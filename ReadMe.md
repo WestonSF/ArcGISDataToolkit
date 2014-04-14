@@ -52,6 +52,7 @@ Copies data from one geodatabase to another using a CSV file to map dataset name
 Exports out the names of datasets in a geodatabase to a CSV file.
 
 #### Remove Duplicate Domains
+Gets a list of used domains in the database then removes those not being used. Also looks at configuration file to find duplicate domains, then re-assigns a domain and removes the unused duplicate domain.
 
 
 ## Features

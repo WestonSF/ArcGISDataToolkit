@@ -1,11 +1,12 @@
 #-------------------------------------------------------------
 # Name:       Remove Duplicate Domains
-# Purpose:            
+# Purpose:    Gets a list of used domains in the database then removes those not being used. Also looks at configuration
+#             file to find duplicate domains, then re-assigns a domain and removes the unused duplicate domain.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    14/04/2014
 # Last Updated:    14/04/2014
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.0/10.1/10.2
+# ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
 #--------------------------------
 
@@ -31,7 +32,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(*argv): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(geodatabase): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -41,8 +42,40 @@ def mainFunction(*argv): # Get parameters from ArcGIS Desktop tool by seperating
             logger.info("Process started.")
             
         # --------------------------------------- Start of code --------------------------------------- #
+        # Get a list of assigned domains
+        assignedDomains = []
         
+        # Get a list of the feature datasets in the database
+        arcpy.env.workspace = geodatabase
+        featureDatasetList = arcpy.ListDatasets("", "Feature")
+        # FUNCTION - Get the domains for these feature datasets
+        assignedDomains = assignedDomains + getDomains(featureDatasetList,"Feature Dataset")
+        
+        # Get a list of the feature classes in the database
+        featureClassList = arcpy.ListFeatureClasses()
+        # FUNCTION - Get the domains for these feature calsses
+        assignedDomains = assignedDomains + getDomains(featureClassList,"Feature Class")
 
+         # Get a list of the tables in the database
+        tableList = arcpy.ListTables()
+        # FUNCTION - Get the domains for these tables
+        assignedDomains = assignedDomains + getDomains(featureClassList,"Table")
+
+        # Get a list of domains on the geodatabase
+        geodatabaseDomains = arcpy.da.ListDomains(geodatabase)      
+        # For each of the domains
+        for domain in geodatabaseDomains:
+            usedDomainCount = 0
+            # Check it is being used by looking at the assigned domains list
+            for assignedDomain in assignedDomains:
+                if (domain.name == assignedDomain):               
+                    usedDomainCount = usedDomainCount + 1
+
+            # If domain is not being used            
+            if (usedDomainCount == 0):
+                arcpy.AddMessage("Removing domain " + domain.name + " as not being used...")
+                arcpy.DeleteDomain_management(geodatabase, domain.name)
+        
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
@@ -101,6 +134,43 @@ def mainFunction(*argv): # Get parameters from ArcGIS Desktop tool by seperating
 # End of main function
 
 
+# Get a list of domains used in the database
+def getDomains(datasetList,dataType):
+    assignedDomains = []   
+    # Loop through the datasets
+    for dataset in datasetList:
+        # If feature datasets
+        if (dataType == "Feature Dataset"):
+            # Get a list of the feature classes in the feature dataset
+            featureClassList = arcpy.ListFeatureClasses("","",dataset)
+
+            # Loop through the feature classes in the feature dataset
+            for featureClass in featureClassList:
+                # List fields in feature class
+                fields = arcpy.ListFields(featureClass)
+
+                # Loop through fields
+                for field in fields:
+                    # Check if field has domain
+                    if field.domain != "":
+                        # Add the domain to the list
+                        assignedDomains.append(field.domain)
+                        
+        # If feature classes/tables
+        else:       
+            # List fields in feature class
+            fields = arcpy.ListFields(dataset)
+
+            # Loop through fields
+            for field in fields:
+                # Check if field has domain
+                if field.domain != "":
+                    # Add the domain to the list
+                    assignedDomains.append(field.domain)
+
+    # Return a list of assigned domains
+    return assignedDomains
+        
 # Start of set logging function
 def setLogging(logFile):
     # Create a logger
