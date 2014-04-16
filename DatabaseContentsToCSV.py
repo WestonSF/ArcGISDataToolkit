@@ -3,7 +3,7 @@
 # Purpose:    Exports out the names of datasets in a geodatabase to a CSV file.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    11/04/2014
-# Last Updated:    13/04/2014
+# Last Updated:    16/04/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0/10.1/10.2
 # Python Version:   2.7
@@ -176,11 +176,13 @@ def getDatasets(geodatabase,csvFile,csvDelimiter,datasetList,dataType):
 
         # If tables
         elif (dataType == "Table"):
-                # Write the name of the table to the CSV  
-                row = []                               
-                row.append(dataset)
-                writer.writerow(row)            
-                arcpy.AddMessage("Table added to list - " + dataset + "...")                      
+                # Don't include compress log
+                if (dataset != "SDE_compress_log"):
+                    # Write the name of the table to the CSV  
+                    row = []                               
+                    row.append(dataset)
+                    writer.writerow(row)            
+                    arcpy.AddMessage("Table added to list - " + dataset + "...")                      
 
                 
 # Start of set logging function

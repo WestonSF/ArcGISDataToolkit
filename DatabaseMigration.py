@@ -3,7 +3,7 @@
 # Purpose:    Copies data from one geodatabase to another using a XML file to map dataset names.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    10/04/2014
-# Last Updated:    14/04/2014
+# Last Updated:    16/04/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0/10.1/10.2
 # Python Version:   2.7
@@ -248,14 +248,16 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                             
         # If tables
         elif (dataType == "Table"):
-            # Copy over dataset if necessary                    
-            if ((datasetsOption == "All") or (datasetInConfig == "true")):               
-                # Copy over table
-                arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")                      
-                arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")
-                if (versionDataset == "true"):
-                    arcpy.AddMessage("Versioning dataset - " + destinationDatasetPath + "...")
-                    arcpy.RegisterAsVersioned_management(destinationDatasetPath, "NO_EDITS_TO_BASE")
+            # Don't include compress log
+            if (dataset != "SDE_compress_log"):            
+                # Copy over dataset if necessary                    
+                if ((datasetsOption == "All") or (datasetInConfig == "true")):               
+                    # Copy over table
+                    arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")                      
+                    arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")
+                    if (versionDataset == "true"):
+                        arcpy.AddMessage("Versioning dataset - " + destinationDatasetPath + "...")
+                        arcpy.RegisterAsVersioned_management(destinationDatasetPath, "NO_EDITS_TO_BASE")
                     
 # Start of set logging function
 def setLogging(logFile):
