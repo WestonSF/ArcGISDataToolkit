@@ -3,7 +3,7 @@
 # Purpose:    Exports out the names of datasets in a geodatabase to a CSV file.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    11/04/2014
-# Last Updated:    16/04/2014
+# Last Updated:    13/04/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0/10.1/10.2
 # Python Version:   2.7
@@ -145,21 +145,22 @@ def getDatasets(geodatabase,csvFile,csvDelimiter,datasetList,dataType):
 
     # Loop through the datasets
     for dataset in datasetList:
-        # Change dataset name to be just name (remove user and schema if SDE database)
-        splitDataset = dataset.split('.')
-        dataset = splitDataset[-1]
-
         # If feature datasets
         if (dataType == "Feature Dataset"):
             # Get a list of the feature classes in the feature dataset
             featureClassList = arcpy.ListFeatureClasses("","",dataset)
-            
-            # Loop through the feature classes in the feature dataset
-            for featureClass in featureClassList:
-                # Change feature dataset name to be just name (remove user and schema if SDE database)
-                splitDataset = featureClass.split('.')
-                featureClass = splitDataset[-1]
 
+            arcpy.AddMessage(dataset)
+            # Loop through the feature classes in the feature dataset
+            for featureClass in featureClassList:               
+                # Change dataset name to be just name (remove user and schema if SDE database) - Needs to go after ListFeatureClasses in 9.3 Database
+                splitDataset = dataset.split('.')
+                dataset = splitDataset[-1]
+
+                # Change feature class name to be just name (remove user and schema if SDE database)
+                splitDataset = featureClass.split('.')
+                featureClass = splitDataset[-1]             
+                
                 # Write the name of the feature class to the CSV
                 row = []                               
                 row.append(dataset + "\\" + featureClass)
@@ -176,13 +177,11 @@ def getDatasets(geodatabase,csvFile,csvDelimiter,datasetList,dataType):
 
         # If tables
         elif (dataType == "Table"):
-                # Don't include compress log
-                if (dataset != "SDE_compress_log"):
-                    # Write the name of the table to the CSV  
-                    row = []                               
-                    row.append(dataset)
-                    writer.writerow(row)            
-                    arcpy.AddMessage("Table added to list - " + dataset + "...")                      
+                # Write the name of the table to the CSV  
+                row = []                               
+                row.append(dataset)
+                writer.writerow(row)            
+                arcpy.AddMessage("Table added to list - " + dataset + "...")                      
 
                 
 # Start of set logging function

@@ -150,11 +150,6 @@ def getDomains(geodatabase,datasetList,configRoot,dataType):
     assignedDomains = []   
     # Loop through the datasets
     for dataset in datasetList:
-
-        # Change dataset name to be just name (remove user and schema if SDE database)
-        splitDataset = dataset.split('.')
-        dataset = splitDataset[-1]
-
         # Setup the source and destination paths
         sourceDatasetPath = os.path.join(geodatabase, dataset)
         
@@ -162,10 +157,13 @@ def getDomains(geodatabase,datasetList,configRoot,dataType):
         if (dataType == "Feature Dataset"):
             # Get a list of the feature classes in the feature dataset
             featureClassList = arcpy.ListFeatureClasses("","",dataset)
-
+            
             # Loop through the feature classes in the feature dataset
             for featureClass in featureClassList:
-
+                # Change dataset name to be just name (remove user and schema if SDE database) - Needs to go after ListFeatureClasses in 9.3 Database
+                splitDataset = dataset.split('.')
+                dataset = splitDataset[-1]
+                
                 # Change feature class name to be just name (remove user and schema if SDE database)
                 splitDataset = featureClass.split('.')
                 featureClass = splitDataset[-1]
@@ -215,7 +213,7 @@ def getDomains(geodatabase,datasetList,configRoot,dataType):
                               if (field.domain == child.find("duplicate").text):
                                   arcpy.AddMessage("Reassigning domain on feature class " + dataset + " from " + field.domain + " to " + child.find("original").text + " as it is duplicated...")
                                   # Re-assign domain to other domain
-                                  arcpy.AssignDomainToField_management(geodatabase, field.name, child.find("original").text, "")
+                                  arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, child.find("original").text, "")
                                   domain = child.find("original").text
                         # Add the domain to the list
                         assignedDomains.append(domain)                               

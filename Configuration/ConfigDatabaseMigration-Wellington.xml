@@ -3,53 +3,53 @@
 	<datasets>
 		<dataset>
 			<source>PARKS_DATA_ACCESS\Capture_Line</source>
-			<destination>PARKS_DATA_ACCESS\Capture_Line</destination>
-			<version>yes</version>
+			<destination>PARKS_DATA_ACCESS_Capture_Line</destination>
+			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>PARKS_DATA_ACCESS\Capture_Point</source>
-			<destination>PARKS_DATA_ACCESS\Capture_Point</destination>
-			<version>yes</version>
+			<destination>PARKS_DATA_ACCESS_Capture_Point</destination>
+			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>PARKS_DATA_ACCESS\Capture_Polygon</source>
-			<destination>PARKS_DATA_ACCESS\Capture_Polygon</destination>
+			<destination>PARKS_DATA_ACCESS_Capture_Polygon</destination>
 			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>PARKS_DATA_ACCESS\coastal_weeds</source>
-			<destination>PARKS_DATA_ACCESS\coastal_weeds</destination>
-			<version>yes</version>
+			<destination>PARKS_DATA_ACCESS_coastal_weeds</destination>
+			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>Roading\ParkingPoints</source>
-			<destination>Roading\Parking</destination>
-			<version>yes</version>
+			<destination>Roading_Parking</destination>
+			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>Roading\ParkingPolylines</source>
-			<destination>Roading\ParkingPolylines</destination>
-			<version>yes</version>
+			<destination>Roading_ParkingPolylines</destination>
+			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>Roading\Footpaths1</source>
-			<destination>Roading\Footpaths</destination>
+			<destination>Roading_Footpaths</destination>
 			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>Roading\RoadSpeed</source>
-			<destination>Roading\RoadSpeed</destination>
-			<version>yes</version>
+			<destination>Roading_RoadSpeed</destination>
+			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>PropertyMaintenance\LocationPoints</source>
-			<destination>PropertyMaintenance\LocationPoints</destination>
-			<version>yes</version>
+			<destination>PropertyMaintenance_LocationPoints</destination>
+			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>PropertyMaintenance\ParcelPending</source>
-			<destination>PropertyMaintenance\ParcelPending</destination>
-			<version>yes</version>
+			<destination>PropertyMaintenance_ParcelPending</destination>
+			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>Ridgetops</source>
@@ -59,12 +59,12 @@
 		<dataset>
 			<source>Rates</source>
 			<destination>Rates</destination>
-			<version>yes</version>
+			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>ResourceConsents</source>
 			<destination>ResourceConsents</destination>
-			<version>yes</version>
+			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>test</source>
@@ -74,7 +74,12 @@
 		<dataset>
 			<source>test2</source>
 			<destination>test2</destination>
-			<version>yes</version>
+			<version>no</version>
+		</dataset>
+		<dataset>
+			<source>test</source>
+			<destination>test343434</destination>
+			<version>no</version>
 		</dataset>
 	</datasets>
 </configuration>

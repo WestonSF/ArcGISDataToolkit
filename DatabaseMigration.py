@@ -3,7 +3,7 @@
 # Purpose:    Copies data from one geodatabase to another using a XML file to map dataset names.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    10/04/2014
-# Last Updated:    16/04/2014
+# Last Updated:    14/04/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0/10.1/10.2
 # Python Version:   2.7
@@ -131,11 +131,7 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
     for dataset in datasetList:
         # Dataset in config variable 
         datasetInConfig = "false"
-        versionDataset = "false"
-        
-        # Change dataset name to be just name (remove user and schema if SDE database)
-        splitDataset = dataset.split('.')
-        dataset = splitDataset[-1]
+        versionDataset = "false"        
 
         # Setup the source and destination paths
         sourceDatasetPath = os.path.join(sourceGeodatabase, dataset)
@@ -163,27 +159,32 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
             
             # Get a list of the feature classes in the feature dataset
             featureClassList = arcpy.ListFeatureClasses("","",dataset)
-            
+
             # Loop through the feature classes in the feature dataset
             for featureClass in featureClassList:
                 # Dataset in config variable 
                 datasetInConfig = "false"
-        
+
+                # Change dataset name to be just name (remove user and schema if SDE database) - Needs to go after ListFeatureClasses in 9.3 Database
+                splitDataset = dataset.split('.')
+                dataset = splitDataset[-1]
+
                 # Change feature class name to be just name (remove user and schema if SDE database)
                 splitDataset = featureClass.split('.')
                 featureClass = splitDataset[-1]
-                    
+                
                 # Setup the source and destination paths                
                 sourceDatasetPath = os.path.join(sourceGeodatabase + "\\" + dataset, featureClass)
+                
                 destinationDatasetPath = os.path.join(destinationGeodatabase + "\\" + dataset, featureClass)
-
+                
                 # If configuration provided
                 needFeatureDataset = "true"
                 if (configRoot):
                     # Look through configuration file to see if source dataset is in there
-                    for child in configRoot.find("datasets"):
+                    for child in configRoot.find("datasets"):                         
                         # If dataset is in config file
-                        if ((dataset + "\\" + featureClass) == child.find("source").text):
+                        if ((dataset + "\\" + featureClass) == child.find("source").text):                        
                             datasetInConfig = "true"                            
                             # Change the destination path
                             destinationDatasetPath = os.path.join(destinationGeodatabase, child.find("destination").text)
@@ -248,16 +249,14 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                             
         # If tables
         elif (dataType == "Table"):
-            # Don't include compress log
-            if (dataset != "SDE_compress_log"):            
-                # Copy over dataset if necessary                    
-                if ((datasetsOption == "All") or (datasetInConfig == "true")):               
-                    # Copy over table
-                    arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")                      
-                    arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")
-                    if (versionDataset == "true"):
-                        arcpy.AddMessage("Versioning dataset - " + destinationDatasetPath + "...")
-                        arcpy.RegisterAsVersioned_management(destinationDatasetPath, "NO_EDITS_TO_BASE")
+            # Copy over dataset if necessary                    
+            if ((datasetsOption == "All") or (datasetInConfig == "true")):               
+                # Copy over table
+                arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")                      
+                arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")
+                if (versionDataset == "true"):
+                    arcpy.AddMessage("Versioning dataset - " + destinationDatasetPath + "...")
+                    arcpy.RegisterAsVersioned_management(destinationDatasetPath, "NO_EDITS_TO_BASE")
                     
 # Start of set logging function
 def setLogging(logFile):
