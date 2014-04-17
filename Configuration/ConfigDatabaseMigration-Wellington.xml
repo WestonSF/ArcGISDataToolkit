@@ -3,23 +3,23 @@
 	<datasets>
 		<dataset>
 			<source>PARKS_DATA_ACCESS\Capture_Line</source>
-			<destination>PARKS_DATA_ACCESS_Capture_Line</destination>
+			<destination>PARKS_DATA_ACCESS\Capture_Line</destination>
 			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>PARKS_DATA_ACCESS\Capture_Point</source>
-			<destination>PARKS_DATA_ACCESS_Capture_Point</destination>
-			<version>no</version>
+			<destination>PARKS_DATA_ACCESS\Capture_Point</destination>
+			<version>yes</version>
 		</dataset>
 		<dataset>
 			<source>PARKS_DATA_ACCESS\Capture_Polygon</source>
 			<destination>PARKS_DATA_ACCESS_Capture_Polygon</destination>
-			<version>no</version>
+			<version>yes</version>
 		</dataset>
 		<dataset>
 			<source>PARKS_DATA_ACCESS\coastal_weeds</source>
 			<destination>PARKS_DATA_ACCESS_coastal_weeds</destination>
-			<version>no</version>
+			<version>yes</version>
 		</dataset>
 		<dataset>
 			<source>Roading\ParkingPoints</source>
@@ -28,13 +28,13 @@
 		</dataset>
 		<dataset>
 			<source>Roading\ParkingPolylines</source>
-			<destination>Roading_ParkingPolylines</destination>
+			<destination>Roading\ParkingPolylines</destination>
 			<version>no</version>
 		</dataset>
 		<dataset>
 			<source>Roading\Footpaths1</source>
 			<destination>Roading_Footpaths</destination>
-			<version>no</version>
+			<version>yes</version>
 		</dataset>
 		<dataset>
 			<source>Roading\RoadSpeed</source>
@@ -49,17 +49,17 @@
 		<dataset>
 			<source>PropertyMaintenance\ParcelPending</source>
 			<destination>PropertyMaintenance_ParcelPending</destination>
-			<version>no</version>
+			<version>yes</version>
 		</dataset>
 		<dataset>
 			<source>Ridgetops</source>
 			<destination>Ridgetops</destination>
-			<version>no</version>
+			<version>yes</version>
 		</dataset>
 		<dataset>
 			<source>Rates</source>
 			<destination>Rates</destination>
-			<version>no</version>
+			<version>yes</version>
 		</dataset>
 		<dataset>
 			<source>ResourceConsents</source>
@@ -79,7 +79,7 @@
 		<dataset>
 			<source>test</source>
 			<destination>test343434</destination>
-			<version>no</version>
+			<version>yes</version>
 		</dataset>
 	</datasets>
 </configuration>

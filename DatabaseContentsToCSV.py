@@ -3,7 +3,7 @@
 # Purpose:    Exports out the names of datasets in a geodatabase to a CSV file.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    11/04/2014
-# Last Updated:    13/04/2014
+# Last Updated:    17/04/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0/10.1/10.2
 # Python Version:   2.7
@@ -150,38 +150,48 @@ def getDatasets(geodatabase,csvFile,csvDelimiter,datasetList,dataType):
             # Get a list of the feature classes in the feature dataset
             featureClassList = arcpy.ListFeatureClasses("","",dataset)
 
-            arcpy.AddMessage(dataset)
+            # Change dataset name to be just name (remove user and schema if SDE database)
+            splitDataset = dataset.split('.')
+            dataset = splitDataset[-1]
+                
             # Loop through the feature classes in the feature dataset
             for featureClass in featureClassList:               
-                # Change dataset name to be just name (remove user and schema if SDE database) - Needs to go after ListFeatureClasses in 9.3 Database
-                splitDataset = dataset.split('.')
-                dataset = splitDataset[-1]
-
                 # Change feature class name to be just name (remove user and schema if SDE database)
                 splitDataset = featureClass.split('.')
                 featureClass = splitDataset[-1]             
                 
-                # Write the name of the feature class to the CSV
-                row = []                               
-                row.append(dataset + "\\" + featureClass)
-                writer.writerow(row)
-                arcpy.AddMessage("Feature class added to list - " + dataset + "\\" + featureClass + "...")                      
+                # Write the name of the feature class to the CSV - Not _H or VW
+                if ("_H" not in featureClass) and ("VW" not in featureClass) and ("vw" not in featureClass):                   
+                    row = []                               
+                    row.append(dataset + "\\" + featureClass)
+                    writer.writerow(row)
+                    arcpy.AddMessage("Feature class added to list - " + dataset + "\\" + featureClass + "...")                      
 
         # If feature classes
         elif (dataType == "Feature Class"):
-                # Write the name of the feature class to the CSV 
-                row = []                               
-                row.append(dataset)
-                writer.writerow(row)            
-                arcpy.AddMessage("Feature class added to list - " + dataset + "...")                      
+                # Change dataset name to be just name (remove user and schema if SDE database)
+                splitDataset = dataset.split('.')
+                dataset = splitDataset[-1]
+            
+                # Write the name of the feature class to the CSV - Not _H or VW
+                if ("_H" not in dataset) and ("VW" not in dataset) and ("vw" not in dataset):                   
+                    row = []                               
+                    row.append(dataset)
+                    writer.writerow(row)            
+                    arcpy.AddMessage("Feature class added to list - " + dataset + "...")                      
 
         # If tables
         elif (dataType == "Table"):
-                # Write the name of the table to the CSV  
-                row = []                               
-                row.append(dataset)
-                writer.writerow(row)            
-                arcpy.AddMessage("Table added to list - " + dataset + "...")                      
+                # Change dataset name to be just name (remove user and schema if SDE database)
+                splitDataset = dataset.split('.')
+                dataset = splitDataset[-1]
+            
+                # Write the name of the table to the CSV - Not _H or VW
+                if ("_H" not in dataset) and ("VW" not in dataset) and ("vw" not in dataset):             
+                    row = []                               
+                    row.append(dataset)
+                    writer.writerow(row)            
+                    arcpy.AddMessage("Table added to list - " + dataset + "...")                      
 
                 
 # Start of set logging function

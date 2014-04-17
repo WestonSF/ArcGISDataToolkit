@@ -3,7 +3,7 @@
 # Purpose:    Copies data from one geodatabase to another using a XML file to map dataset names.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    10/04/2014
-# Last Updated:    14/04/2014
+# Last Updated:    17/04/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0/10.1/10.2
 # Python Version:   2.7
@@ -154,20 +154,20 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                         
         # If feature datasets
         if (dataType == "Feature Dataset"):
-            # Store current dataset
-            currentDataset = dataset
-            
             # Get a list of the feature classes in the feature dataset
             featureClassList = arcpy.ListFeatureClasses("","",dataset)
 
+            # Change dataset name to be just name (remove user and schema if SDE database) - Needs to go after ListFeatureClasses in 9.3 Database
+            splitDataset = dataset.split('.')
+            dataset = splitDataset[-1]
+
+            # Store current dataset
+            currentDataset = dataset
+            
             # Loop through the feature classes in the feature dataset
             for featureClass in featureClassList:
                 # Dataset in config variable 
                 datasetInConfig = "false"
-
-                # Change dataset name to be just name (remove user and schema if SDE database) - Needs to go after ListFeatureClasses in 9.3 Database
-                splitDataset = dataset.split('.')
-                dataset = splitDataset[-1]
 
                 # Change feature class name to be just name (remove user and schema if SDE database)
                 splitDataset = featureClass.split('.')
@@ -206,31 +206,41 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                 # If feature dataset already exists in destination database
                 if arcpy.Exists(os.path.join(destinationGeodatabase, dataset)):
                     # Copy over dataset if necessary                    
-                    if ((datasetsOption == "All") or (datasetInConfig == "true")):                      
-                        # If feature class already exists in destination database
-                        if arcpy.Exists(destinationDatasetPath):
-                            # Delete the dataset first
-                            arcpy.Delete_management(destinationDatasetPath, "FeatureClass")
-                        # Copy over feature class
-                        arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")                              
-                        arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
-                        if (versionDataset == "true"):
-                            arcpy.AddMessage("Versioning dataset - " + os.path.join(destinationGeodatabase, dataset) + "...")
-                            arcpy.RegisterAsVersioned_management(os.path.join(destinationGeodatabase, dataset), "NO_EDITS_TO_BASE")
+                    if ((datasetsOption == "All") or (datasetInConfig == "true")):
+                        # Don't include _H or VW
+                        if ("_H" not in featureClass) and ("VW" not in featureClass) and ("vw" not in featureClass):                          
+                            # If feature class already exists in destination database
+                            if arcpy.Exists(destinationDatasetPath):
+                                # Delete the dataset first
+                                arcpy.Delete_management(destinationDatasetPath, "FeatureClass")
+                            # Copy over feature class
+                            arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")                              
+                            arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
+                            if (versionDataset == "true"):
+                                # If dataset is not versioned already
+                                datasetVersioned = arcpy.Describe(os.path.join(destinationGeodatabase, dataset)).isVersioned
+                                if (datasetVersioned == 0):
+                                    arcpy.AddMessage("Versioning dataset - " + os.path.join(destinationGeodatabase, dataset) + "...")
+                                    arcpy.RegisterAsVersioned_management(os.path.join(destinationGeodatabase, dataset), "NO_EDITS_TO_BASE")
                     
                 # Otherwise create the feature dataset first
                 else:
                     # Copy over dataset if necessary                    
                     if ((datasetsOption == "All") or (datasetInConfig == "true")):
-                        # If split has occured, dataset is necessary in destination database
-                        if (needFeatureDataset == "true"):                        
-                            arcpy.CreateFeatureDataset_management(destinationGeodatabase, dataset, sourceDatasetPath)                       
-                        # Copy over feature class
-                        arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")                        
-                        arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
-                        if (versionDataset == "true"):
-                            arcpy.AddMessage("Versioning dataset - " + os.path.join(destinationGeodatabase, dataset) + "...")
-                            arcpy.RegisterAsVersioned_management(os.path.join(destinationGeodatabase, dataset), "NO_EDITS_TO_BASE")
+                        # Don't include _H or VW
+                        if ("_H" not in featureClass) and ("VW" not in featureClass) and ("vw" not in featureClass):     
+                            # If split has occured, dataset is necessary in destination database
+                            if (needFeatureDataset == "true"):                        
+                                arcpy.CreateFeatureDataset_management(destinationGeodatabase, dataset, sourceDatasetPath)                       
+                            # Copy over feature class
+                            arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")                        
+                            arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
+                            if (versionDataset == "true"):
+                                # If dataset is not versioned already
+                                datasetVersioned = arcpy.Describe(os.path.join(destinationGeodatabase, dataset)).isVersioned
+                                if (datasetVersioned == 0):                                
+                                    arcpy.AddMessage("Versioning dataset - " + os.path.join(destinationGeodatabase, dataset) + "...")
+                                    arcpy.RegisterAsVersioned_management(os.path.join(destinationGeodatabase, dataset), "NO_EDITS_TO_BASE")
                     
                 # Change dataset name back to current dataset
                 dataset = currentDataset
@@ -238,25 +248,41 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                 
         # If feature classes
         elif (dataType == "Feature Class"):
+            # Change dataset name to be just name (remove user and schema if SDE database) - Needs to go after ListFeatureClasses in 9.3 Database
+            splitDataset = dataset.split('.')
+            dataset = splitDataset[-1]
+            
             # Copy over dataset if necessary                    
             if ((datasetsOption == "All") or (datasetInConfig == "true")):               
-                # Copy over feature class
-                arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")                      
-                arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
-                if (versionDataset == "true"):
-                    arcpy.AddMessage("Versioning dataset - " + destinationDatasetPath + "...")
-                    arcpy.RegisterAsVersioned_management(destinationDatasetPath, "NO_EDITS_TO_BASE")
+                # Copy over feature class - Not _H or VW
+                if ("_H" not in dataset) and ("VW" not in dataset) and ("vw" not in dataset):                  
+                    arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")                      
+                    arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
+                    if (versionDataset == "true"):
+                        # If dataset is not versioned already
+                        datasetVersioned = arcpy.Describe(os.path.join(destinationDatasetPath, dataset)).isVersioned
+                        if (datasetVersioned == 0):                         
+                            arcpy.AddMessage("Versioning dataset - " + destinationDatasetPath + "...")
+                            arcpy.RegisterAsVersioned_management(destinationDatasetPath, "NO_EDITS_TO_BASE")
                             
         # If tables
         elif (dataType == "Table"):
+            # Change dataset name to be just name (remove user and schema if SDE database) - Needs to go after ListFeatureClasses in 9.3 Database
+            splitDataset = dataset.split('.')
+            dataset = splitDataset[-1]
+            
             # Copy over dataset if necessary                    
             if ((datasetsOption == "All") or (datasetInConfig == "true")):               
-                # Copy over table
-                arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")                      
-                arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")
-                if (versionDataset == "true"):
-                    arcpy.AddMessage("Versioning dataset - " + destinationDatasetPath + "...")
-                    arcpy.RegisterAsVersioned_management(destinationDatasetPath, "NO_EDITS_TO_BASE")
+                # Copy over table - Not _H or VW
+                if ("_H" not in dataset) and ("VW" not in dataset) and ("vw" not in dataset):  
+                    arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")                      
+                    arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")
+                    if (versionDataset == "true"):
+                        # If dataset is not versioned already
+                        datasetVersioned = arcpy.Describe(os.path.join(destinationDatasetPath, dataset)).isVersioned
+                        if (datasetVersioned == 0):                          
+                            arcpy.AddMessage("Versioning dataset - " + destinationDatasetPath + "...")
+                            arcpy.RegisterAsVersioned_management(destinationDatasetPath, "NO_EDITS_TO_BASE")
                     
 # Start of set logging function
 def setLogging(logFile):
