@@ -158,7 +158,7 @@ def getDomains(geodatabase,datasetList,configRoot,dataType):
             # Get a list of the feature classes in the feature dataset
             featureClassList = arcpy.ListFeatureClasses("","",dataset)
 
-            # Change dataset name to be just name (remove user and schema if SDE database) - Needs to go after ListFeatureClasses in 9.3 Database
+            # Change dataset name to be just name (remove user and schema if SDE database)
             splitDataset = dataset.split('.')
             dataset = splitDataset[-1]
             
@@ -202,7 +202,7 @@ def getDomains(geodatabase,datasetList,configRoot,dataType):
             # List fields in feature class
             fields = arcpy.ListFields(dataset)
 
-            # Change dataset name to be just name (remove user and schema if SDE database) - Needs to go after ListFeatureClasses in 9.3 Database
+            # Change dataset name to be just name (remove user and schema if SDE database)
             splitDataset = dataset.split('.')
             dataset = splitDataset[-1]
 
