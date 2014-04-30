@@ -174,6 +174,9 @@ def getDomains(geodatabase,datasetList,configFile,dataType):
                         if field.domain != "":
                             # If configuration provided
                             if (configFile):
+                                # Set CSV delimiter                         
+                                csvDelimiter = ","
+
                                 domain = field.domain
                                 # Look through configuration file to see if domain exists
                                 # Open the CSV file
@@ -188,13 +191,15 @@ def getDomains(geodatabase,datasetList,configFile,dataType):
                                         if (count > 0):
                                             originalDomain = row[0]
                                             duplicateDomain = row[1]
-                            
                                             # If duplicate domain is in config file
                                             if (field.domain == duplicateDomain):
                                                 arcpy.AddMessage("Reassigning domain on feature class " + featureClass + " from " + field.domain + " to " + originalDomain + " as it is duplicated...")
                                                 # Re-assign domain to other domain
                                                 arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, "")
                                                 domain = originalDomain
+
+                                        count = count + 1
+                                        
                                     # Add the domain to the list
                                     assignedDomains.append(domain)        
                             else:
@@ -218,29 +223,35 @@ def getDomains(geodatabase,datasetList,configFile,dataType):
                     if field.domain != "":
                         # If configuration provided
                         if (configFile):
-                                domain = field.domain
-                                # Look through configuration file to see if domain exists
-                                # Open the CSV file
-                                with open(configFile, 'rb') as csvFile:
-                                    # Read the CSV file
-                                    rows = csv.reader(csvFile, delimiter=csvDelimiter)
+                            # Set CSV delimiter                         
+                            csvDelimiter = ","
+                
+                            domain = field.domain
+                            # Look through configuration file to see if domain exists
+                            # Open the CSV file
+                            with open(configFile, 'rb') as csvFile:
+                                # Read the CSV file
+                                rows = csv.reader(csvFile, delimiter=csvDelimiter)
 
-                                    # For each row in the CSV
-                                    count = 0
-                                    for row in rows:
-                                        # Ignore the first line containing headers
-                                        if (count > 0):
-                                            originalDomain = row[0]
-                                            duplicateDomain = row[1]
-                            
-                                            # If duplicate domain is in config file
-                                            if (field.domain == duplicateDomain):
-                                                arcpy.AddMessage("Reassigning domain on feature class " + featureClass + " from " + field.domain + " to " + originalDomain + " as it is duplicated...")
-                                                # Re-assign domain to other domain
-                                                arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, "")
-                                                domain = originalDomain
-                                    # Add the domain to the list
-                                    assignedDomains.append(domain)                             
+                                # For each row in the CSV
+                                count = 0
+                                for row in rows:
+                                    # Ignore the first line containing headers
+                                    if (count > 0):
+                                        originalDomain = row[0]
+                                        duplicateDomain = row[1]
+                        
+                                        # If duplicate domain is in config file
+                                        if (field.domain == duplicateDomain):
+                                            arcpy.AddMessage("Reassigning domain on feature class " + featureClass + " from " + field.domain + " to " + originalDomain + " as it is duplicated...")
+                                            # Re-assign domain to other domain
+                                            arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, "")
+                                            domain = originalDomain
+
+                                    count = count + 1
+                                        
+                                # Add the domain to the list
+                                assignedDomains.append(domain)                             
                         else:
                             # Add the domain to the list
                             assignedDomains.append(field.domain)

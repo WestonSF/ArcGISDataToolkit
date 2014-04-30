@@ -221,21 +221,38 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                 if ((datasetsOption == "All") or (datasetInConfig == "true")):
                     # Don't include _H or VW
                     if ("_H" not in dataset2) and ("VW" not in dataset2) and ("vw" not in dataset2):
-                        # If dataset already exists
-                        if arcpy.Exists(destinationDatasetPath):
+                        # If dataset already exists when doing a data copy
+                        if ((arcpy.Exists(destinationDatasetPath)) and (updateMode == "New")):
                             # Delete the dataset first
                             arcpy.Delete_management(destinationDatasetPath, "FeatureClass")
-                        # If table
-                        if (dataType == "Table"):
-                            # Copy over table                            
-                            arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")
-                            arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")                       
-                        # Feature classes
+
+                        # If creating new dataset - updateMode is New
+                        if (updateMode == "New"):                               
+                            # If table
+                            if (dataType == "Table"):
+                                # Copy over table                            
+                                arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")
+                                arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")                       
+                            # Feature classes
+                            else:
+                                # Copy over feature class
+                                arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")
+                                arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
+                        # Else refreshing existing dataset - updateMode is Existing
                         else:
-                            # Copy over feature class
-                            arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")
-                            arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
- 
+                            # If table
+                            if (dataType == "Table"):
+                                # Refreshing table
+                                arcpy.AddMessage("Loading in records for table - " + destinationDatasetPath + "...")
+                                arcpy.DeleteRows_management(destinationDatasetPath)
+                                arcpy.Append_management(sourceDatasetPath, destinationDatasetPath, "NO_TEST", "", "")                    
+                            # Feature classes
+                            else:
+                                # Refreshing feature class
+                                arcpy.AddMessage("Loading in records for feature class - " + destinationDatasetPath + "...")
+                                arcpy.DeleteFeatures_management(destinationDatasetPath)
+                                arcpy.Append_management(sourceDatasetPath, destinationDatasetPath, "NO_TEST", "", "")   
+                            
                         if (versionDataset == "true"):
                             # If dataset is not versioned already and update mode is new - Feature dataset
                             datasetVersioned = arcpy.Describe(os.path.join(destinationGeodatabase, dataset)).isVersioned
@@ -252,18 +269,35 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                         # If feature dataset is necessary in destination database
                         if (needFeatureDataset == "true"):
                             # Create feature dataset
-                            arcpy.CreateFeatureDataset_management(destinationGeodatabase, dataset, sourceDatasetPath)                       
-                        # If table
-                        if (dataType == "Table"):
-                            # Copy over table
-                            arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")
-                            arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")                       
-                        # Feature classes
+                            arcpy.CreateFeatureDataset_management(destinationGeodatabase, dataset, sourceDatasetPath)
+                            
+                        # If creating new dataset - updateMode is New
+                        if (updateMode == "New"):                            
+                            # If table
+                            if (dataType == "Table"):
+                                # Copy over table
+                                arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")
+                                arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")                       
+                            # Feature classes
+                            else:
+                                # Copy over feature class
+                                arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")
+                                arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
+                        # Else refreshing existing dataset - updateMode is Existing
                         else:
-                            # Copy over feature class
-                            arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")
-                            arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
-
+                            # If table
+                            if (dataType == "Table"):
+                                # Refreshing table
+                                arcpy.AddMessage("Loading in records for table - " + destinationDatasetPath + "...")
+                                arcpy.DeleteRows_management(destinationDatasetPath)
+                                arcpy.Append_management(sourceDatasetPath, destinationDatasetPath, "NO_TEST", "", "")                    
+                            # Feature classes
+                            else:
+                                # Refreshing feature class
+                                arcpy.AddMessage("Loading in records for feature class - " + destinationDatasetPath + "...")
+                                arcpy.DeleteFeatures_management(destinationDatasetPath)
+                                arcpy.Append_management(sourceDatasetPath, destinationDatasetPath, "NO_TEST", "", "")   
+                           
                         if (versionDataset == "true"):
                             # If feature dataset has been created - Set path to that
                             if (needFeatureDataset == "true"):
