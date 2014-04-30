@@ -1,0 +1,4 @@
+source,destination,version
+ResourceConsents,ResourceConsents,no
+Ridgetops,SDE_LandBase\River,yes
+test\Rates,RatesTEST,yes

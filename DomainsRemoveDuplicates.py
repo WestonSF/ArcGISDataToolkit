@@ -4,7 +4,7 @@
 #             file to find duplicate domains, then re-assigns a domain and removes the unused duplicate domain.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    14/04/2014
-# Last Updated:    17/04/2014
+# Last Updated:    30/04/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
@@ -16,7 +16,7 @@ import sys
 import logging
 import smtplib
 import arcpy
-import xml.etree.ElementTree as ET
+import csv
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -43,14 +43,6 @@ def mainFunction(geodatabase,configFile): # Get parameters from ArcGIS Desktop t
             logger.info("Process started.")
             
         # --------------------------------------- Start of code --------------------------------------- #
-
-        # If config file
-        configRoot = ""
-        if configFile:
-            # Convert config file to xml
-            configFileXML = ET.parse(configFile)    
-            # Import and reference the configuration file
-            configRoot = configFileXML.getroot()
             
         # Get a list of assigned domains
         assignedDomains = []
@@ -59,17 +51,17 @@ def mainFunction(geodatabase,configFile): # Get parameters from ArcGIS Desktop t
         arcpy.env.workspace = geodatabase
         featureDatasetList = arcpy.ListDatasets("", "Feature")
         # FUNCTION - Get the domains for these feature datasets
-        assignedDomains = assignedDomains + getDomains(geodatabase,featureDatasetList,configRoot,"Feature Dataset")
+        assignedDomains = assignedDomains + getDomains(geodatabase,featureDatasetList,configFile,"Feature Dataset")
         
         # Get a list of the feature classes in the database
         featureClassList = arcpy.ListFeatureClasses()
         # FUNCTION - Get the domains for these feature calsses
-        assignedDomains = assignedDomains + getDomains(geodatabase,featureClassList,configRoot,"Feature Class")
+        assignedDomains = assignedDomains + getDomains(geodatabase,featureClassList,configFile,"Feature Class")
 
          # Get a list of the tables in the database
         tableList = arcpy.ListTables()
         # FUNCTION - Get the domains for these tables
-        assignedDomains = assignedDomains + getDomains(geodatabase,featureClassList,configRoot,"Table")
+        assignedDomains = assignedDomains + getDomains(geodatabase,featureClassList,configFile,"Table")
         
         # Get a list of domains on the geodatabase
         geodatabaseDomains = arcpy.da.ListDomains(geodatabase)      
@@ -146,7 +138,7 @@ def mainFunction(geodatabase,configFile): # Get parameters from ArcGIS Desktop t
 
 
 # Get a list of domains used in the database and reassigns duplicates
-def getDomains(geodatabase,datasetList,configRoot,dataType):
+def getDomains(geodatabase,datasetList,configFile,dataType):
     assignedDomains = []   
     # Loop through the datasets
     for dataset in datasetList:
@@ -181,18 +173,30 @@ def getDomains(geodatabase,datasetList,configRoot,dataType):
                         # Check if field has domain
                         if field.domain != "":
                             # If configuration provided
-                            if (configRoot):
+                            if (configFile):
                                 domain = field.domain
                                 # Look through configuration file to see if domain exists
-                                for child in configRoot.find("domains"):
-                                      # If duplicate domain is in config file
-                                      if (field.domain == child.find("duplicate").text):
-                                          arcpy.AddMessage("Reassigning domain on feature class " + featureClass + " from " + field.domain + " to " + child.find("original").text + " as it is duplicated...")
-                                          # Re-assign domain to other domain
-                                          arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, child.find("original").text, "")
-                                          domain = child.find("original").text
-                                # Add the domain to the list
-                                assignedDomains.append(domain)        
+                                # Open the CSV file
+                                with open(configFile, 'rb') as csvFile:
+                                    # Read the CSV file
+                                    rows = csv.reader(csvFile, delimiter=csvDelimiter)
+
+                                    # For each row in the CSV
+                                    count = 0
+                                    for row in rows:
+                                        # Ignore the first line containing headers
+                                        if (count > 0):
+                                            originalDomain = row[0]
+                                            duplicateDomain = row[1]
+                            
+                                            # If duplicate domain is in config file
+                                            if (field.domain == duplicateDomain):
+                                                arcpy.AddMessage("Reassigning domain on feature class " + featureClass + " from " + field.domain + " to " + originalDomain + " as it is duplicated...")
+                                                # Re-assign domain to other domain
+                                                arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, "")
+                                                domain = originalDomain
+                                    # Add the domain to the list
+                                    assignedDomains.append(domain)        
                             else:
                                 # Add the domain to the list
                                 assignedDomains.append(field.domain)                            
@@ -213,18 +217,30 @@ def getDomains(geodatabase,datasetList,configRoot,dataType):
                     # Check if field has domain
                     if field.domain != "":
                         # If configuration provided
-                        if (configRoot):
-                            domain = field.domain
-                            # Look through configuration file to see if domain exists
-                            for child in configRoot.find("domains"):
-                                  # If duplicate domain is in config file
-                                  if (field.domain == child.find("duplicate").text):
-                                      arcpy.AddMessage("Reassigning domain on feature class " + dataset + " from " + field.domain + " to " + child.find("original").text + " as it is duplicated...")
-                                      # Re-assign domain to other domain
-                                      arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, child.find("original").text, "")
-                                      domain = child.find("original").text
-                            # Add the domain to the list
-                            assignedDomains.append(domain)                               
+                        if (configFile):
+                                domain = field.domain
+                                # Look through configuration file to see if domain exists
+                                # Open the CSV file
+                                with open(configFile, 'rb') as csvFile:
+                                    # Read the CSV file
+                                    rows = csv.reader(csvFile, delimiter=csvDelimiter)
+
+                                    # For each row in the CSV
+                                    count = 0
+                                    for row in rows:
+                                        # Ignore the first line containing headers
+                                        if (count > 0):
+                                            originalDomain = row[0]
+                                            duplicateDomain = row[1]
+                            
+                                            # If duplicate domain is in config file
+                                            if (field.domain == duplicateDomain):
+                                                arcpy.AddMessage("Reassigning domain on feature class " + featureClass + " from " + field.domain + " to " + originalDomain + " as it is duplicated...")
+                                                # Re-assign domain to other domain
+                                                arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, "")
+                                                domain = originalDomain
+                                    # Add the domain to the list
+                                    assignedDomains.append(domain)                             
                         else:
                             # Add the domain to the list
                             assignedDomains.append(field.domain)

@@ -45,14 +45,23 @@ Downloads the data used in a map service layer by querying the json and converti
 #### WFS Layer Download
 Downloads the data used in a WFS layer. 
 
-#### Database Migration
-Copies data from one geodatabase to another using a XML file to map dataset names.  
+#### Database Replication
+Copies data from one geodatabase to another using a CSV file to map dataset names. Two update options:
+   
+        
+* Existing Mode - Will delete and append records, so field names need to be the same.
+             
+* New Mode - Copies data over. Requires no locks on geodatabase datasets being overwritten.  
 
 #### Database Contents To CSV
 Exports out the names of datasets in a geodatabase to a CSV file.
 
 #### Remove Duplicate Domains
 Gets a list of used domains in the database then removes those not being used. Also looks at configuration file to find duplicate domains, then re-assigns a domain and removes the unused duplicate domain.
+
+#### Mortgage Data Import (IN DEVELPOMENT)
+Imports LINZ encumbrance data, cleans it up and pushes into feature class
+ format with bank mortgage is with.
 
 
 ## Features

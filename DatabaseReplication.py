@@ -1,11 +1,13 @@
 #-------------------------------------------------------------
-# Name:       Database Migration
-# Purpose:    Copies data from one geodatabase to another using a XML file to map dataset names.       
+# Name:       Database Replication
+# Purpose:    Copies data from one geodatabase to another using a CSV file to map dataset names. Two update options:
+#             Existing Mode - Will delete and append records, so field names need to be the same.
+#             New Mode - Copies data over. Requires no locks on geodatabase datasets being overwritten.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    10/04/2014
-# Last Updated:    17/04/2014
+# Last Updated:    30/04/2014
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.0/10.1/10.2
+# ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
 #--------------------------------
 
@@ -15,7 +17,7 @@ import sys
 import logging
 import smtplib
 import arcpy
-import xml.etree.ElementTree as ET
+import csv
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -32,7 +34,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(sourceGeodatabase,destinationGeodatabase,datasetsOption,configFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateMode,configFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -43,29 +45,21 @@ def mainFunction(sourceGeodatabase,destinationGeodatabase,datasetsOption,configF
             
         # --------------------------------------- Start of code --------------------------------------- #
 
-        # If config file
-        configRoot = ""
-        if configFile:
-            # Convert config file to xml
-            configFileXML = ET.parse(configFile)    
-            # Import and reference the configuration file
-            configRoot = configFileXML.getroot()
-        
         # Get a list of the feature datasets in the database
         arcpy.env.workspace = sourceGeodatabase
         featureDatasetList = arcpy.ListDatasets("", "Feature")
         # FUNCTION - Copy over these feature datasets
-        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configRoot,featureDatasetList,"Feature Dataset")
+        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateMode,configFile,featureDatasetList,"Feature Dataset")
         
         # Get a list of the feature classes in the database
         featureClassList = arcpy.ListFeatureClasses()
         # FUNCTION - Copy over these feature classes
-        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configRoot,featureClassList,"Feature Class")
+        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateMode,configFile,featureClassList,"Feature Class")
 
          # Get a list of the tables in the database
         tableList = arcpy.ListTables()
         # FUNCTION - Copy over these tables
-        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configRoot,tableList,"Table")            
+        copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateMode,configFile,tableList,"Table")            
 
         # --------------------------------------- End of code --------------------------------------- #  
             
@@ -126,7 +120,7 @@ def mainFunction(sourceGeodatabase,destinationGeodatabase,datasetsOption,configF
 
 
 # Copy datasets function
-def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configRoot,datasetList,dataType):
+def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateMode,configFile,datasetList,dataType):
     # Loop through the datasets
     for dataset in datasetList:      
         # If feature datasets
@@ -174,35 +168,52 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                 destinationDatasetPath = os.path.join(destinationGeodatabase, dataset2)
 
             # If configuration provided
-            if (configRoot):
+            if (configFile):
+                # Set CSV delimiter                         
+                csvDelimiter = ","
                 # Look through configuration file to see if source dataset is in there
-                for child in configRoot.find("datasets"):                         
-                    # If feature datasets
-                    if (dataType == "Feature Dataset"):
-                        selectDataset = dataset + "\\" + dataset2                        
-                    # Feature classes and tables
-                    else:
-                        selectDataset = dataset2
+                # Open the CSV file
+                with open(configFile, 'rb') as csvFile:
+                    # Read the CSV file
+                    rows = csv.reader(csvFile, delimiter=csvDelimiter)
+                    
+                    # For each row in the CSV
+                    count = 0
+                    for row in rows:
+                        # Ignore the first line containing headers
+                        if (count > 0):
+                            sourceDataset = row[0]
+                            destinationDataset = row[1]
+                            version = row[2]
 
-                    # If dataset is in config file
-                    if ((selectDataset) == child.find("source").text):
-                        datasetInConfig = "true"                            
-                        # Change the destination path
-                        destinationDatasetPath = os.path.join(destinationGeodatabase, child.find("destination").text)
-                        arcpy.AddMessage("Changing dataset name from " + sourceDatasetPath + " to " + destinationDatasetPath + "...")
+                            # If feature datasets
+                            if (dataType == "Feature Dataset"):
+                                selectDataset = dataset + "\\" + dataset2                        
+                            # Feature classes and tables
+                            else:
+                                selectDataset = dataset2
 
-                        # Check for a backslash in dataset name
-                        splitDataset = child.find("destination").text.split('\\')
-                        # If split has occured, dataset is necessary in destination database
-                        if (len(splitDataset) > 1):
-                            dataset = splitDataset[0]
-                            needFeatureDataset = "true"                            
-                        else:
-                            needFeatureDataset = "false"
+                            # If dataset is in config file
+                            if ((selectDataset) == sourceDataset):
+                                datasetInConfig = "true"                            
+                                # Change the destination path
+                                destinationDatasetPath = os.path.join(destinationGeodatabase, destinationDataset)
+                                arcpy.AddMessage("Changing dataset name from " + sourceDatasetPath + " to " + destinationDatasetPath + "...")
+
+                                # Check for a backslash in dataset name
+                                splitDataset = destinationDataset.split('\\')
+                                # If split has occured, dataset is necessary in destination database
+                                if (len(splitDataset) > 1):
+                                    dataset = splitDataset[0]
+                                    needFeatureDataset = "true"                            
+                                else:
+                                    needFeatureDataset = "false"
+                                    
+                                # If versioning the dataset
+                                if (version == "yes"):
+                                    versionDataset = "true"
                             
-                        # If versioning the dataset
-                        if (child.find("version").text == "yes"):
-                            versionDataset = "true"
+                        count = count + 1
    
             # If feature dataset already exists in destination database
             if arcpy.Exists(os.path.join(destinationGeodatabase, dataset)):
@@ -226,9 +237,9 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                             arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
  
                         if (versionDataset == "true"):
-                            # If dataset is not versioned already - Feature dataset
+                            # If dataset is not versioned already and update mode is new - Feature dataset
                             datasetVersioned = arcpy.Describe(os.path.join(destinationGeodatabase, dataset)).isVersioned
-                            if (datasetVersioned == 0):
+                            if ((datasetVersioned == 0) and (updateMode == "New")):
                                 arcpy.AddMessage("Versioning dataset - " + os.path.join(destinationGeodatabase, dataset) + "...")
                                 arcpy.RegisterAsVersioned_management(os.path.join(destinationGeodatabase, dataset), "NO_EDITS_TO_BASE")
                 
@@ -261,9 +272,9 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,configR
                             else:
                                 datasetPath = destinationDatasetPath
                                 
-                            # If dataset is not versioned already
+                            # If dataset is not versioned already and update mode is new
                             datasetVersioned = arcpy.Describe(datasetPath).isVersioned
-                            if (datasetVersioned == 0):                                
+                            if ((datasetVersioned == 0) and (updateMode == "New")):                               
                                 arcpy.AddMessage("Versioning dataset - " + datasetPath + "...")
                                 arcpy.RegisterAsVersioned_management(datasetPath, "NO_EDITS_TO_BASE")
                 
