@@ -23,8 +23,8 @@ import csv
 arcpy.env.overwriteOutput = True
 
 # Set global variables
-enableLogging = "true" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = "D:\Arc\Scripts\Migration\Logs\Database Replication.log" # os.path.join(os.path.dirname(__file__), "Example.log")
+enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
 sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
@@ -264,6 +264,7 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                         else:
                                             errorMessage = errorMessage + " " + str(e.args[i])
                                     arcpy.AddError(errorMessage)
+                                    logger.warning(errorMessage)
                                     
                             # Feature classes
                             else:
@@ -283,7 +284,8 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                         else:
                                             errorMessage = errorMessage + " " + str(e.args[i])
                                     arcpy.AddError(errorMessage)  
-                            
+                                    logger.warning(errorMessage)
+                                    
                         if (versionDataset == "true"):
                             # If dataset is not versioned already and update mode is new - Feature dataset
                             datasetVersioned = arcpy.Describe(os.path.join(destinationGeodatabase, dataset)).isVersioned
@@ -334,6 +336,7 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                         else:
                                             errorMessage = errorMessage + " " + str(e.args[i])
                                     arcpy.AddError(errorMessage)
+                                    logger.warning(errorMessage)
                                     
                             # Feature classes
                             else:
@@ -353,7 +356,8 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                         else:
                                             errorMessage = errorMessage + " " + str(e.args[i])
                                     arcpy.AddError(errorMessage)  
-                           
+                                    logger.warning(errorMessage)
+                                    
                         if (versionDataset == "true"):
                             # If feature dataset has been created - Set path to that
                             if (needFeatureDataset == "true"):
