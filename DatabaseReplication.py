@@ -23,8 +23,8 @@ import csv
 arcpy.env.overwriteOutput = True
 
 # Set global variables
-enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
+enableLogging = "true" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+logFile = "D:\Arc\Scripts\Migration\Logs\Database Replication.log" # os.path.join(os.path.dirname(__file__), "Example.log")
 sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
@@ -121,6 +121,11 @@ def mainFunction(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
 
 # Copy datasets function
 def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateMode,configFile,datasetList,dataType):
+    # Logging
+    if (enableLogging == "true"):
+        # Setup logging
+        logger, logMessage = setLogging(logFile)
+            
     # Loop through the datasets
     for dataset in datasetList:      
         # If feature datasets
@@ -133,12 +138,12 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
             dataset2List = datasetList
             datasetList = []
             
-        # Change dataset name to be just name (remove user and schema if SDE database)
+        # Change dataset name to be just name (remove user and schema if SDE database) - Used just for source dataset
         splitDataset = dataset.split('.')
-        dataset = splitDataset[-1]
+        newDataset = splitDataset[-1]
 
         # Store current dataset working on
-        currentDataset = dataset
+        currentDataset = newDataset
         
         # Loop through the datasets
         for dataset2 in dataset2List:             
@@ -152,20 +157,21 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
             else:            
                 needFeatureDataset = "false"
             
-            # Change feature class name to be just name (remove user and schema if SDE database)
+            # Change feature class name to be just name (remove user and schema if SDE database) - Used just for source dataset
             splitDataset = dataset2.split('.')
-            dataset2 = splitDataset[-1]
-
+            newDataset2 = splitDataset[-1]
+            
             # If feature datasets
             if (dataType == "Feature Dataset"):             
-                # Setup the source and destination paths                
+                # Setup the source and destination paths - Source needs to have full nhame including schema and user             
                 sourceDatasetPath = os.path.join(sourceGeodatabase + "\\" + dataset, dataset2)             
-                destinationDatasetPath = os.path.join(destinationGeodatabase + "\\" + dataset, dataset2)
+                destinationDatasetPath = os.path.join(destinationGeodatabase + "\\" + newDataset, newDataset2)
+                
             # Feature classes and tables
             else:
-                # Setup the source and destination paths                
+                # Setup the source and destination paths - Source needs to have full nhame including schema and user                  
                 sourceDatasetPath = os.path.join(sourceGeodatabase, dataset2)             
-                destinationDatasetPath = os.path.join(destinationGeodatabase, dataset2)
+                destinationDatasetPath = os.path.join(destinationGeodatabase, newDataset2)
 
             # If configuration provided
             if (configFile):
@@ -188,10 +194,10 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
 
                             # If feature datasets
                             if (dataType == "Feature Dataset"):
-                                selectDataset = dataset + "\\" + dataset2                        
+                                selectDataset = newDataset + "\\" + newDataset2                        
                             # Feature classes and tables
                             else:
-                                selectDataset = dataset2
+                                selectDataset = newDataset2
 
                             # If dataset is in config file
                             if ((selectDataset) == sourceDataset):
@@ -204,7 +210,7 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 splitDataset = destinationDataset.split('\\')
                                 # If split has occured, dataset is necessary in destination database
                                 if (len(splitDataset) > 1):
-                                    dataset = splitDataset[0]
+                                    newDataset = splitDataset[0]
                                     needFeatureDataset = "true"                            
                                 else:
                                     needFeatureDataset = "false"
@@ -216,11 +222,11 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                         count = count + 1
    
             # If feature dataset already exists in destination database
-            if arcpy.Exists(os.path.join(destinationGeodatabase, dataset)):
+            if arcpy.Exists(os.path.join(destinationGeodatabase, newDataset)): 
                 # Copy over dataset if necessary                    
                 if ((datasetsOption == "All") or (datasetInConfig == "true")):
                     # Don't include _H or VW
-                    if ("_H" not in dataset2) and ("VW" not in dataset2) and ("vw" not in dataset2):
+                    if ("_H" not in newDataset2) and ("VW" not in newDataset2) and ("vw" not in newDataset2):
                         # If dataset already exists when doing a data copy
                         if ((arcpy.Exists(destinationDatasetPath)) and (updateMode == "New")):
                             # Delete the dataset first
@@ -245,31 +251,56 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 # Refreshing table
                                 arcpy.AddMessage("Loading in records for table - " + destinationDatasetPath + "...")
                                 arcpy.DeleteRows_management(destinationDatasetPath)
-                                arcpy.Append_management(sourceDatasetPath, destinationDatasetPath, "NO_TEST", "", "")                    
+                                # Try append in data - Catch error if there are any and continue
+                                try:
+                                    arcpy.Append_management(sourceDatasetPath, destinationDatasetPath, "NO_TEST", "", "")
+                                # If python error
+                                except Exception as e:
+                                    errorMessage = ""
+                                    # Build and show the error message
+                                    for i in range(len(e.args)):
+                                        if (i == 0):
+                                            errorMessage = str(e.args[i])
+                                        else:
+                                            errorMessage = errorMessage + " " + str(e.args[i])
+                                    arcpy.AddError(errorMessage)
+                                    
                             # Feature classes
                             else:
                                 # Refreshing feature class
                                 arcpy.AddMessage("Loading in records for feature class - " + destinationDatasetPath + "...")
                                 arcpy.DeleteFeatures_management(destinationDatasetPath)
-                                arcpy.Append_management(sourceDatasetPath, destinationDatasetPath, "NO_TEST", "", "")   
+                                # Try append in data - Catch error if there are any and continue
+                                try:
+                                    arcpy.Append_management(sourceDatasetPath, destinationDatasetPath, "NO_TEST", "", "")
+                                # If python error
+                                except Exception as e:
+                                    errorMessage = ""
+                                    # Build and show the error message
+                                    for i in range(len(e.args)):
+                                        if (i == 0):
+                                            errorMessage = str(e.args[i])
+                                        else:
+                                            errorMessage = errorMessage + " " + str(e.args[i])
+                                    arcpy.AddError(errorMessage)  
                             
                         if (versionDataset == "true"):
                             # If dataset is not versioned already and update mode is new - Feature dataset
                             datasetVersioned = arcpy.Describe(os.path.join(destinationGeodatabase, dataset)).isVersioned
                             if ((datasetVersioned == 0) and (updateMode == "New")):
-                                arcpy.AddMessage("Versioning dataset - " + os.path.join(destinationGeodatabase, dataset) + "...")
-                                arcpy.RegisterAsVersioned_management(os.path.join(destinationGeodatabase, dataset), "NO_EDITS_TO_BASE")
+                                arcpy.AddMessage("Versioning dataset - " + os.path.join(destinationGeodatabase, newDataset) + "...")
+                                arcpy.RegisterAsVersioned_management(os.path.join(destinationGeodatabase, newDataset), "NO_EDITS_TO_BASE")
                 
             # Otherwise
             else:
                 # Copy over dataset if necessary                    
                 if ((datasetsOption == "All") or (datasetInConfig == "true")):
                     # Don't include _H or VW
-                    if ("_H" not in dataset2) and ("VW" not in dataset2) and ("vw" not in dataset2):
+                    if ("_H" not in newDataset2) and ("VW" not in newDataset2) and ("vw" not in newDataset2):
                         # If feature dataset is necessary in destination database
                         if (needFeatureDataset == "true"):
                             # Create feature dataset
-                            arcpy.CreateFeatureDataset_management(destinationGeodatabase, dataset, sourceDatasetPath)
+                            arcpy.CreateFeatureDataset_management(destinationGeodatabase, newDataset, sourceDatasetPath)
                             
                         # If creating new dataset - updateMode is New
                         if (updateMode == "New"):                            
@@ -290,18 +321,43 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 # Refreshing table
                                 arcpy.AddMessage("Loading in records for table - " + destinationDatasetPath + "...")
                                 arcpy.DeleteRows_management(destinationDatasetPath)
-                                arcpy.Append_management(sourceDatasetPath, destinationDatasetPath, "NO_TEST", "", "")                    
+                                # Try append in data - Catch error if there are any and continue
+                                try:
+                                    arcpy.Append_management(sourceDatasetPath, destinationDatasetPath, "NO_TEST", "", "")
+                                # If python error
+                                except Exception as e:
+                                    errorMessage = ""
+                                    # Build and show the error message
+                                    for i in range(len(e.args)):
+                                        if (i == 0):
+                                            errorMessage = str(e.args[i])
+                                        else:
+                                            errorMessage = errorMessage + " " + str(e.args[i])
+                                    arcpy.AddError(errorMessage)
+                                    
                             # Feature classes
                             else:
                                 # Refreshing feature class
                                 arcpy.AddMessage("Loading in records for feature class - " + destinationDatasetPath + "...")
                                 arcpy.DeleteFeatures_management(destinationDatasetPath)
-                                arcpy.Append_management(sourceDatasetPath, destinationDatasetPath, "NO_TEST", "", "")   
+                                # Try append in data - Catch error if there are any and continue
+                                try:
+                                    arcpy.Append_management(sourceDatasetPath, destinationDatasetPath, "NO_TEST", "", "")
+                                # If python error
+                                except Exception as e:
+                                    errorMessage = ""
+                                    # Build and show the error message
+                                    for i in range(len(e.args)):
+                                        if (i == 0):
+                                            errorMessage = str(e.args[i])
+                                        else:
+                                            errorMessage = errorMessage + " " + str(e.args[i])
+                                    arcpy.AddError(errorMessage)  
                            
                         if (versionDataset == "true"):
                             # If feature dataset has been created - Set path to that
                             if (needFeatureDataset == "true"):
-                                datasetPath = os.path.join(destinationGeodatabase, dataset)
+                                datasetPath = os.path.join(destinationGeodatabase, newDataset)
                             # Otherwise - Set path to feature class                                        
                             else:
                                 datasetPath = destinationDatasetPath
@@ -313,7 +369,7 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 arcpy.RegisterAsVersioned_management(datasetPath, "NO_EDITS_TO_BASE")
                 
             # Change dataset name back to current dataset
-            dataset = currentDataset
+            newDataset = currentDataset
             versionDataset = "false"
                     
 # Start of set logging function

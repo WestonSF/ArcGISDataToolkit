@@ -243,7 +243,7 @@ def getDomains(geodatabase,datasetList,configFile,dataType):
                         
                                         # If duplicate domain is in config file
                                         if (field.domain == duplicateDomain):
-                                            arcpy.AddMessage("Reassigning domain on feature class " + featureClass + " from " + field.domain + " to " + originalDomain + " as it is duplicated...")
+                                            arcpy.AddMessage("Reassigning domain on feature class " + dataset + " from " + field.domain + " to " + originalDomain + " as it is duplicated...")
                                             # Re-assign domain to other domain
                                             arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, "")
                                             domain = originalDomain
