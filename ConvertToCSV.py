@@ -4,9 +4,9 @@
 #             records also.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    16/01/2014
-# Last Updated:    04/03/2014
+# Last Updated:    03/05/2014
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.1+
+# ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
 #--------------------------------
 
@@ -93,11 +93,13 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                                 # For each value in the row
                                 values = []
                                 for value in row:
+                                    # Encode any ascii characters
+                                    value = unicode(value).encode('utf-8')
                                     # Append to list
-                                    values.append( str(value) )
-                                # Write the row to the CSV file       
+                                    values.append(value)                             
+                                # Write the row to the CSV file
                                 writer.writerow(values)
-
+                        
                         # Add in footer information if required
                         if headerFooter == "true":
                             # Set footer delimiter
@@ -161,10 +163,12 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                             for row in cursor:
                                 # For each value in the row
                                 values = []
-                                for value in row:  
+                                for value in row:
+                                    # Encode any ascii characters
+                                    value = unicode(value).encode('utf-8')
                                     # Append to list
-                                    values.append( str(value) )
-                                # Write the row to the CSV file       
+                                    values.append(value)                             
+                                # Write the row to the CSV file
                                 writer.writerow(values)
 
                         # Add in footer information if required
