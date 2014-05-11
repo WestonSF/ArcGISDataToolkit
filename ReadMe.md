@@ -59,7 +59,10 @@ Exports out the names of datasets in a geodatabase to a CSV file.
 #### Remove Duplicate Domains
 Gets a list of used domains in the database then removes those not being used. Also looks at configuration file to find duplicate domains, then re-assigns a domain and removes the unused duplicate domain.
 
-#### Mortgage Data Import (IN DEVELPOMENT)
+#### LINZ Data Service Download (IN DEVELPOMENT)
+Downloads the data  from the LINZ data service by either downloading the entire dataset for WFS or downloading the changeset and updating the data.
+
+#### LINZ Mortgage Data Import (IN DEVELPOMENT)
 Imports LINZ encumbrance data, cleans it up and pushes into feature class
  format with bank mortgage is with.
 

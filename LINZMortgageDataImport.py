@@ -1,5 +1,5 @@
 #-------------------------------------------------------------
-# Name:       Mortgage Data Import
+# Name:       LINZ Mortgage Data Import
 # Purpose:    Imports LINZ encumbrance data, cleans it up and pushes into feature class
 #             format with bank mortgage is with.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
