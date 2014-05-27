@@ -66,6 +66,9 @@ Downloads the data  from the LINZ data service by either downloading the entire 
 Imports LINZ encumbrance data, cleans it up and pushes into feature class
  format with bank mortgage is with.
 
+#### Map Document Summary
+Creates a summary for each map document in a folder, stating description information about the map document as well as a list of data sources used in the map documents.
+
 
 ## Features
 
@@ -90,7 +93,7 @@ Imports LINZ encumbrance data, cleans it up and pushes into feature class
 	* Web Data Upload
 	* Map Service Download
 	* WFS Layer Download
-
+	
 
 * Remote Server Data Update Requirements
 	* ArcGIS for Server 10.1+
