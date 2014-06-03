@@ -59,6 +59,11 @@ def mainFunction(geodatabase,configFile): # Get parameters from ArcGIS Desktop t
         assignedDomains = assignedDomains + getDomains(geodatabase,featureClassList,configFile,"Feature Class")
 
          # Get a list of the tables in the database
+        mosaicList = arcpy.ListDatasets("", "Mosaic")
+        # FUNCTION - Get the domains for these tables
+        assignedDomains = assignedDomains + getDomains(geodatabase,mosaicList,configFile,"Mosaic")
+
+        # Get a list of mosaic rasters in the database
         tableList = arcpy.ListTables()
         # FUNCTION - Get the domains for these tables
         assignedDomains = assignedDomains + getDomains(geodatabase,featureClassList,configFile,"Table")
@@ -77,6 +82,9 @@ def mainFunction(geodatabase,configFile): # Get parameters from ArcGIS Desktop t
             if (usedDomainCount == 0):
                 # Remove the domain from the geodatabase
                 arcpy.AddMessage("Removing domain " + domain.name + " as not being used...")
+                # Logging
+                if (enableLogging == "true"):
+                    logger.info("Removing domain " + domain.name + " as not being used...")
                 arcpy.DeleteDomain_management(geodatabase, domain.name)              
         
         # --------------------------------------- End of code --------------------------------------- #  
@@ -193,11 +201,30 @@ def getDomains(geodatabase,datasetList,configFile,dataType):
                                             duplicateDomain = row[1]
                                             # If duplicate domain is in config file
                                             if (field.domain == duplicateDomain):
-                                                arcpy.AddMessage("Reassigning domain on feature class " + featureClass + " from " + field.domain + " to " + originalDomain + " as it is duplicated...")
-                                                # Re-assign domain to other domain
-                                                arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, "")
-                                                domain = originalDomain
+                                                arcpy.AddMessage("Reassigning domain on feature class " + featureClass + " from " + field.domain + " to " + originalDomain + " as it is duplicated...")                                                
+                                                # Logging
+                                                if (enableLogging == "true"):
+                                                    logger.info("Reassigning domain on feature class " + featureClass + " from " + field.domain + " to " + originalDomain + " as it is duplicated...")
 
+                                                # Check for subtypes on the dataset
+                                                describeDataset = arcpy.Describe(featureClass)
+                                                defaultSubtype = describeDataset.defaultSubtypeCode
+                                                # If a subtype exists
+                                                if (defaultSubtype != -1):
+                                                    # Get a list of subtypes on the dataset
+                                                    datasetSubtypes = arcpy.da.ListSubtypes(dataset)
+                                                    for subtypeCode, subtypeDesc in datasetSubtypes.iteritems():
+                                                        # Remove existing domain
+                                                        arcpy.RemoveDomainFromField_management(sourceDatasetPath, field.name, subtypeCode)
+                                                        # Re-assign domain to other domain for subtype
+                                                        arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, subtypeCode)
+                                                        # Re-assign domain to other domain
+                                                        arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, "")
+                                                # Else no subtypes on dataset
+                                                else:
+                                                    # Re-assign domain to other domain
+                                                    arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, "")
+                                                
                                         count = count + 1
                                         
                                     # Add the domain to the list
@@ -206,7 +233,7 @@ def getDomains(geodatabase,datasetList,configFile,dataType):
                                 # Add the domain to the list
                                 assignedDomains.append(field.domain)                            
                         
-        # If feature classes/tables
+        # If feature classes/tables/mosaics
         else:       
             # List fields in feature class
             fields = arcpy.ListFields(dataset)
@@ -240,12 +267,34 @@ def getDomains(geodatabase,datasetList,configFile,dataType):
                                     if (count > 0):
                                         originalDomain = row[0]
                                         duplicateDomain = row[1]
-                        
+
                                         # If duplicate domain is in config file
                                         if (field.domain == duplicateDomain):
                                             arcpy.AddMessage("Reassigning domain on feature class " + dataset + " from " + field.domain + " to " + originalDomain + " as it is duplicated...")
-                                            # Re-assign domain to other domain
-                                            arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, "")
+                                            # Logging
+                                            if (enableLogging == "true"):
+                                                logger.info("Reassigning domain on feature class " + dataset + " from " + field.domain + " to " + originalDomain + " as it is duplicated...")                                            
+
+                                            # Check for subtypes on the dataset
+                                            describeDataset = arcpy.Describe(dataset)
+                                            defaultSubtype = describeDataset.defaultSubtypeCode
+
+                                            # If a subtype exists
+                                            if (defaultSubtype != -1):
+                                                # Get a list of subtypes on the dataset
+                                                datasetSubtypes = arcpy.da.ListSubtypes(dataset)
+                                                for subtypeCode, subtypeDesc in datasetSubtypes.iteritems():
+                                                    # Remove existing domain
+                                                    arcpy.RemoveDomainFromField_management(sourceDatasetPath, field.name, subtypeCode)                                                    
+                                                    # Re-assign domain to other domain for subtype
+                                                    arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, subtypeCode)
+                                                    # Re-assign domain to other domain
+                                                    arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, "")
+                                            # Else no subtypes on dataset
+                                            else:
+                                                # Re-assign domain to other domain
+                                                arcpy.AssignDomainToField_management(sourceDatasetPath, field.name, originalDomain, "")
+                                                
                                             domain = originalDomain
 
                                     count = count + 1
@@ -253,6 +302,8 @@ def getDomains(geodatabase,datasetList,configFile,dataType):
                                 # Add the domain to the list
                                 assignedDomains.append(domain)                             
                         else:
+
+                                            
                             # Add the domain to the list
                             assignedDomains.append(field.domain)
                             
