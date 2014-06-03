@@ -4,7 +4,7 @@
 #             file to find duplicate domains, then re-assigns a domain and removes the unused duplicate domain.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    14/04/2014
-# Last Updated:    30/04/2014
+# Last Updated:    03/06/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
