@@ -3,7 +3,7 @@
 # Purpose:    Exports out the names of datasets in a geodatabase to a CSV file.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    11/04/2014
-# Last Updated:    17/04/2014
+# Last Updated:    04/06/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0/10.1/10.2
 # Python Version:   2.7
@@ -22,7 +22,7 @@ arcpy.env.overwriteOutput = True
 
 # Set global variables
 enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
+logFile = os.path.join(os.path.dirname(__file__), r"Logs\DatabaseContentsToCSV.log") # os.path.join(os.path.dirname(__file__), "Example.log")
 sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
@@ -135,6 +135,11 @@ def mainFunction(geodatabase,csvFile,csvDelimiter): # Get parameters from ArcGIS
 
 # List datasets function
 def getDatasets(geodatabase,csvFile,csvDelimiter,datasetList,dataType):
+    # Logging
+    if (enableLogging == "true"):
+        # Setup logging
+        logger, logMessage = setLogging(logFile)
+            
     # Setup writer
     if csvDelimiter == "|":
         writer = csv.writer(csvFile, delimiter="|")                            
@@ -165,6 +170,9 @@ def getDatasets(geodatabase,csvFile,csvDelimiter,datasetList,dataType):
                     row = []                               
                     row.append(dataset + "\\" + featureClass)
                     writer.writerow(row)
+                    # Logging
+                    if (enableLogging == "true"):
+                        logger.info("Feature class added to list - " + dataset + "\\" + featureClass + "...")   
                     arcpy.AddMessage("Feature class added to list - " + dataset + "\\" + featureClass + "...")                      
 
         # If feature classes
@@ -177,7 +185,10 @@ def getDatasets(geodatabase,csvFile,csvDelimiter,datasetList,dataType):
                 if ("_H" not in dataset) and ("VW" not in dataset) and ("vw" not in dataset):                   
                     row = []                               
                     row.append(dataset)
-                    writer.writerow(row)            
+                    writer.writerow(row)
+                    # Logging
+                    if (enableLogging == "true"):
+                        logger.info("Feature class added to list - " + dataset + "...")                       
                     arcpy.AddMessage("Feature class added to list - " + dataset + "...")                      
 
         # If tables
@@ -190,7 +201,10 @@ def getDatasets(geodatabase,csvFile,csvDelimiter,datasetList,dataType):
                 if ("_H" not in dataset) and ("VW" not in dataset) and ("vw" not in dataset):             
                     row = []                               
                     row.append(dataset)
-                    writer.writerow(row)            
+                    writer.writerow(row)
+                    # Logging
+                    if (enableLogging == "true"):
+                        logger.info("Table added to list - " + dataset + "...")                         
                     arcpy.AddMessage("Table added to list - " + dataset + "...")                      
 
                 

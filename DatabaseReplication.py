@@ -5,7 +5,7 @@
 #             New Mode - Copies data over. Requires no locks on geodatabase datasets being overwritten.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    10/04/2014
-# Last Updated:    30/04/2014
+# Last Updated:    04/06/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
@@ -24,7 +24,7 @@ arcpy.env.overwriteOutput = True
 
 # Set global variables
 enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
+logFile = os.path.join(os.path.dirname(__file__), r"Logs\DatabaseReplication.log") # os.path.join(os.path.dirname(__file__), "Example.log")
 sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
@@ -204,8 +204,11 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 datasetInConfig = "true"                            
                                 # Change the destination path
                                 destinationDatasetPath = os.path.join(destinationGeodatabase, destinationDataset)
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Changing dataset name from " + sourceDatasetPath + " to " + destinationDatasetPath + "...")
                                 arcpy.AddMessage("Changing dataset name from " + sourceDatasetPath + " to " + destinationDatasetPath + "...")
-
+                        
                                 # Check for a backslash in dataset name
                                 splitDataset = destinationDataset.split('\\')
                                 # If split has occured, dataset is necessary in destination database
@@ -236,20 +239,29 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                         if (updateMode == "New"):                               
                             # If table
                             if (dataType == "Table"):
-                                # Copy over table                            
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Copying over table - " + destinationDatasetPath + "...")                                
                                 arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")
+                                # Copy over table                                
                                 arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")                       
                             # Feature classes
                             else:
-                                # Copy over feature class
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Copying over feature class - " + destinationDatasetPath + "...")                                   
                                 arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")
+                                # Copy over feature class
                                 arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
                         # Else refreshing existing dataset - updateMode is Existing
                         else:
                             # If table
                             if (dataType == "Table"):
-                                # Refreshing table
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Loading in records for table - " + destinationDatasetPath + "...")                                 
                                 arcpy.AddMessage("Loading in records for table - " + destinationDatasetPath + "...")
+                                # Refreshing table                                
                                 arcpy.DeleteRows_management(destinationDatasetPath)
                                 # Try append in data - Catch error if there are any and continue
                                 try:
@@ -268,8 +280,11 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                     
                             # Feature classes
                             else:
-                                # Refreshing feature class
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Loading in records for feature class - " + destinationDatasetPath + "...")   
                                 arcpy.AddMessage("Loading in records for feature class - " + destinationDatasetPath + "...")
+                                # Refreshing feature class                                
                                 arcpy.DeleteFeatures_management(destinationDatasetPath)
                                 # Try append in data - Catch error if there are any and continue
                                 try:
@@ -290,6 +305,9 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                             # If dataset is not versioned already and update mode is new - Feature dataset
                             datasetVersioned = arcpy.Describe(os.path.join(destinationGeodatabase, dataset)).isVersioned
                             if ((datasetVersioned == 0) and (updateMode == "New")):
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Versioning dataset - " + os.path.join(destinationGeodatabase, newDataset) + "...")    
                                 arcpy.AddMessage("Versioning dataset - " + os.path.join(destinationGeodatabase, newDataset) + "...")
                                 arcpy.RegisterAsVersioned_management(os.path.join(destinationGeodatabase, newDataset), "NO_EDITS_TO_BASE")
                 
@@ -308,20 +326,29 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                         if (updateMode == "New"):                            
                             # If table
                             if (dataType == "Table"):
-                                # Copy over table
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Copying over table - " + destinationDatasetPath + "...")                                 
                                 arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")
+                                # Copy over table                                
                                 arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")                       
                             # Feature classes
                             else:
-                                # Copy over feature class
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Copying over feature class - " + destinationDatasetPath + "...")                                  
                                 arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")
+                                # Copy over feature class                                
                                 arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
                         # Else refreshing existing dataset - updateMode is Existing
                         else:
                             # If table
                             if (dataType == "Table"):
-                                # Refreshing table
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Loading in records for table - " + destinationDatasetPath + "...")                                
                                 arcpy.AddMessage("Loading in records for table - " + destinationDatasetPath + "...")
+                                # Refreshing table                                
                                 arcpy.DeleteRows_management(destinationDatasetPath)
                                 # Try append in data - Catch error if there are any and continue
                                 try:
@@ -340,8 +367,11 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                     
                             # Feature classes
                             else:
-                                # Refreshing feature class
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Loading in records for feature class - " + destinationDatasetPath + "...")                   
                                 arcpy.AddMessage("Loading in records for feature class - " + destinationDatasetPath + "...")
+                                # Refreshing feature class                                
                                 arcpy.DeleteFeatures_management(destinationDatasetPath)
                                 # Try append in data - Catch error if there are any and continue
                                 try:
@@ -368,7 +398,10 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 
                             # If dataset is not versioned already and update mode is new
                             datasetVersioned = arcpy.Describe(datasetPath).isVersioned
-                            if ((datasetVersioned == 0) and (updateMode == "New")):                               
+                            if ((datasetVersioned == 0) and (updateMode == "New")):
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Versioning dataset - " + datasetPath + "...")                                  
                                 arcpy.AddMessage("Versioning dataset - " + datasetPath + "...")
                                 arcpy.RegisterAsVersioned_management(datasetPath, "NO_EDITS_TO_BASE")
                 

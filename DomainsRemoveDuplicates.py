@@ -4,7 +4,7 @@
 #             file to find duplicate domains, then re-assigns a domain and removes the unused duplicate domain.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    14/04/2014
-# Last Updated:    03/06/2014
+# Last Updated:    04/06/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
@@ -23,7 +23,7 @@ arcpy.env.overwriteOutput = True
 
 # Set global variables
 enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
+logFile = os.path.join(os.path.dirname(__file__), r"Logs\DomainsRemoveDuplicates.log") # os.path.join(os.path.dirname(__file__), "Example.log")
 sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
@@ -147,6 +147,11 @@ def mainFunction(geodatabase,configFile): # Get parameters from ArcGIS Desktop t
 
 # Get a list of domains used in the database and reassigns duplicates
 def getDomains(geodatabase,datasetList,configFile,dataType):
+    # Logging
+    if (enableLogging == "true"):
+        # Setup logging
+        logger, logMessage = setLogging(logFile)
+        
     assignedDomains = []   
     # Loop through the datasets
     for dataset in datasetList:
