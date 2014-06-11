@@ -18,7 +18,7 @@
 import os
 import sys
 import datetime
-import urllib
+import urllib2
 import zipfile
 import uuid
 import glob
@@ -47,18 +47,25 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
 
         setProxy = "true"       
         # Custom proxy
-        if (setProxy == "true"):      
-            # Setup proxy config        
-            proxyConfig = {"http": "http://themerovingian2:8080"}
-            openURL = urllib.FancyURLopener(proxyConfig)
-            # Write output to temporary folder
-            file = openURL.open(downloadLink)
-            output = open(os.path.join(arcpy.env.scratchFolder, "Data.zip"),'wb')
-            output.write(file.read())
-            output.close()
-        else:      
-            # Download the file from the link
-            urllib.urlretrieve(downloadLink, os.path.join(arcpy.env.scratchFolder, "Data.zip"))
+        if (setProxy == "true"):
+            # Setup the proxy
+            proxy = urllib2.ProxyHandler({"http": "http://themerovingian2:8080"})
+            openURL = urllib2.build_opener(proxy)
+            # Install the proxy
+            urllib2.install_opener(openURL)
+    
+        # Download the file from the link
+        file = urllib2.urlopen(downloadLink)
+        # Download in chunks
+        fileChunk = 16 * 1024
+        with open(os.path.join(arcpy.env.scratchFolder, "Data.zip"), 'wb') as output:
+            while True:
+                chunk = file.read(fileChunk)
+                if not chunk:
+                    break
+                # Write chunk to output file
+                output.write(chunk)
+        output.close()
         
         # Unzip the file to the scrtach folder
         arcpy.AddMessage("Extracting zip file...")  
