@@ -8,7 +8,7 @@
 #             no locks on geodatabase.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    05/09/2013
-# Last Updated:    18/11/2013
+# Last Updated:    11/06/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1+
 # Python Version:   2.7
@@ -25,10 +25,10 @@ import glob
 import arcpy
 arcpy.env.overwriteOutput = True
 
-# Set variables
-logInfo = "false"
-logFile = r""
-sendEmail = "false"
+# Set global variables
+enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+logFile = os.path.join(os.path.dirname(__file__), r"Logs\DataUpdateFromLink.log") # os.path.join(os.path.dirname(__file__), "Example.log")
+sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
 emailPassword = ""
@@ -45,7 +45,7 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
 
         # --------------------------------------- Start of code --------------------------------------- #
 
-        setProxy = "true"       
+        setProxy = "false"       
         # Custom proxy
         if (setProxy == "true"):
             # Setup the proxy

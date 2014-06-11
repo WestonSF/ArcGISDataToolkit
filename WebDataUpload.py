@@ -100,7 +100,7 @@ def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolde
                 zipFile = os.path.join(arcpy.env.scratchWorkspace, "WebData-" + str(uuid.uuid1()) + ".zip")               
             else:
                 zipFile = os.path.join(arcpy.env.scratchFolder, "WebData-" + str(uuid.uuid1()) + ".zip")
-            zippedFolder = zipfile.ZipFile(zipFile, "w")
+            zippedFolder = zipfile.ZipFile(zipFile, "w", allowZip64=True )
 
             # Zip up the geodatabase
             root_len = len(os.path.abspath(str(tempFolder)))

@@ -80,12 +80,14 @@ def mainFunction(geodatabase,configFile): # Get parameters from ArcGIS Desktop t
 
             # If domain is not being used            
             if (usedDomainCount == 0):
-                # Remove the domain from the geodatabase
-                arcpy.AddMessage("Removing domain " + domain.name + " as not being used...")
-                # Logging
-                if (enableLogging == "true"):
-                    logger.info("Removing domain " + domain.name + " as not being used...")
-                arcpy.DeleteDomain_management(geodatabase, domain.name)              
+                # Don't remove domains on wcc_encroachments feature class (Wellington City Council) as there are subtypes and it's causing issues in this script
+                if ("Encroach" not in domain.name):
+                    # Remove the domain from the geodatabase
+                    arcpy.AddMessage("Removing domain " + domain.name + " as not being used...")
+                    # Logging
+                    if (enableLogging == "true"):
+                        logger.info("Removing domain " + domain.name + " as not being used...")
+                    arcpy.DeleteDomain_management(geodatabase, domain.name)              
         
         # --------------------------------------- End of code --------------------------------------- #  
             

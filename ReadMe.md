@@ -59,6 +59,21 @@ Exports out the names of datasets in a geodatabase to a CSV file.
 #### Remove Duplicate Domains
 Gets a list of used domains in the database then removes those not being used. Also looks at configuration file to find duplicate domains, then re-assigns a domain and removes the unused duplicate domain.
 
+#### Map Document Summary
+Creates a summary for each map document in a folder, stating description information about the map document as well as a list of data sources used in the map documents.
+
+#### Setup Data for Replication (IN DEVELPOMENT)
+Prepares the datasets specified for replication to another local or remote geodatabase. This will version all the datasets and add GlobalIDs. Locks will be removed from the datasets, so this can take place.
+
+#### Syncronise Datasets (IN DEVELPOMENT)
+Runs the syncronise changes gp tool to update dataset changes from one geodatabase to another.
+
+#### Capacity Services Wellington Upload (IN DEVELPOMENT)
+Updates services data for Capacity Services Wellington, packages this data up and uploads to an FTP site for download by Capacity.
+
+#### Assign Permissions on Datasets (IN DEVELPOMENT)
+Updates permissions for datasets specified in a CSV file. This will go through CSV file and make sure datasets have the permissions specified for the relevant groups and users.
+
 #### LINZ Data Service Download (IN DEVELPOMENT)
 Downloads the data  from the LINZ data service by either downloading the entire dataset for WFS or downloading the changeset and updating the data.
 
@@ -66,8 +81,6 @@ Downloads the data  from the LINZ data service by either downloading the entire 
 Imports LINZ encumbrance data, cleans it up and pushes into feature class
  format with bank mortgage is with.
 
-#### Map Document Summary
-Creates a summary for each map document in a folder, stating description information about the map document as well as a list of data sources used in the map documents.
 
 
 ## Features
@@ -78,6 +91,7 @@ Creates a summary for each map document in a folder, stating description informa
 * Two options - New or existing.
 * Backup data to Google Drive
 * Download data from a map service or WFS layer.
+* Replicate datasets
 
 
 ## Requirements
@@ -113,6 +127,17 @@ Creates a summary for each map document in a folder, stating description informa
 	* Setup a Google project [here](https://cloud.google.com/console/project)
 	* Create new client ID to get the client ID and client secret
 	* Go to this link and replace {CLIENTID} with the ID generated in the above step - https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id={CLIENTID}&access_type=offline
+
+* Setup Replication Process
+	* All datasets to be replicated need to be versioned and have global IDs - Run the "Setup data for replication" script.
+	* These datasets then need to be copied to the replication database.
+	* Setup MXD with all datasets to be replicated.
+	* Open up the Distributed Geodatabase toolbar and go through the Create Replica wizard e.g.
+        	* One Way - Parent to Child
+     		* Select the geodatabase where the datasets have been copied to
+     		* Select Register Existing Data Only
+       		* Give the replica a name
+	* Go Next and Finish and this will register all the datasets in these two databases together, so any changes in the parent database will be recorded, then when the "Syncronise Datasets" tool is run, these will be pushed to the child geodatabase.
 
 * Setup a script to run as a scheduled task
 	* Fork and then clone the repository or download the .zip file. 
