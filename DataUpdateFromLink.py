@@ -44,8 +44,21 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
             loggingFunction(logFile,"start","")
 
         # --------------------------------------- Start of code --------------------------------------- #
-        # Download the file from the link
-        urllib.urlretrieve(downloadLink, os.path.join(arcpy.env.scratchFolder, "Data.zip"))
+
+        setProxy = "true"       
+        # Custom proxy
+        if (setProxy == "true"):      
+            # Setup proxy config        
+            proxyConfig = {"http": "http://themerovingian2:8080"}
+            openURL = urllib.FancyURLopener(proxyConfig)
+            # Write output to temporary folder
+            file = openURL.open(downloadLink)
+            output = open(os.path.join(arcpy.env.scratchFolder, "Data.zip"),'wb')
+            output.write(file.read())
+            output.close()
+        else:      
+            # Download the file from the link
+            urllib.urlretrieve(downloadLink, os.path.join(arcpy.env.scratchFolder, "Data.zip"))
         
         # Unzip the file to the scrtach folder
         arcpy.AddMessage("Extracting zip file...")  
