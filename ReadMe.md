@@ -60,7 +60,7 @@ Gets a list of used domains in the database then removes those not being used. A
 #### Map Document Summary
 Creates a summary for each map document in a folder, stating description information about the map document as well as a list of data sources used in the map documents.
 
-#### Setup Data for Replication (IN DEVELPOMENT)
+#### Setup Data for Replication
 Prepares the datasets specified for replication to another local or remote geodatabase. This will version all the datasets and add GlobalIDs. Locks will be removed from the datasets, so this can take place.
 
 #### Syncronise Datasets (IN DEVELPOMENT)

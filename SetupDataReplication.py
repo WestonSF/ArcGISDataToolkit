@@ -16,13 +16,14 @@ import sys
 import logging
 import smtplib
 import arcpy
+import csv
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
 
 # Set global variables
-enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
+enableLogging = "true" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+logFile = os.path.join(os.path.dirname(__file__), r"Logs\SetupDataReplication.log") # os.path.join(os.path.dirname(__file__), "Example.log")
 sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
@@ -32,7 +33,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(*argv): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(configFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -42,7 +43,68 @@ def mainFunction(*argv): # Get parameters from ArcGIS Desktop tool by seperating
             logger.info("Process started.")
             
         # --------------------------------------- Start of code --------------------------------------- #
-        
+
+        # If configuration provided
+        if (configFile):
+            # Set CSV delimiter                         
+            csvDelimiter = ","
+            # Open the CSV file
+            with open(configFile, 'rb') as csvFile:
+                # Read the CSV file
+                rows = csv.reader(csvFile, delimiter=csvDelimiter)
+                
+                # For each row in the CSV                              
+                count = 0
+                for row in rows:
+                    # Ignore the first line containing headers
+                    if (count > 0):
+                        # Get the full dataset name
+                        dataset = row[0]
+
+                        # Get the database connection string from the input
+                        splitDataset = dataset.split('.sde')
+                        database = splitDataset[0] + ".sde"
+
+                        # Disconnect users from the database        
+                        arcpy.DisconnectUser(database, "ALL")
+
+                        # Get dataset properties
+                        datasetDesc = arcpy.Describe(dataset)                        
+                        
+                        # Add Global IDs
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.info("Adding Global IDs for " + dataset + "...")                                   
+                        arcpy.AddMessage("Adding Global IDs for " + dataset + "...")                            
+                        arcpy.AddGlobalIDs_management(dataset)
+
+                        # If dataset isn't versioned
+                        if (datasetDesc.isVersioned == 0):                 
+                            # Register As Versioned
+                            # Logging
+                            if (enableLogging == "true"):
+                                logger.info("Registering dataset as versioned - " + dataset + "...")                                   
+                            arcpy.AddMessage("Registering dataset as versioned - " + dataset + "...")                            
+                            arcpy.RegisterAsVersioned_management(dataset, "NO_EDITS_TO_BASE")
+                        else:
+                            # Logging
+                            if (enableLogging == "true"):
+                                logger.info("Dataset already versioned - " + dataset + "...")                                   
+                            arcpy.AddMessage("Dataset already versioned - " + dataset + "...")                              
+                    count = count + 1
+        # No configuration provided
+        else:
+            arcpy.AddError("No configuration file provided...")
+            # Logging
+            if (enableLogging == "true"):
+                # Log error          
+                logger.error("No configuration file provided...")                 
+                # Remove file handler and close log file
+                logging.FileHandler.close(logMessage)
+                logger.removeHandler(logMessage)
+            if (sendErrorEmail == "true"):
+                # Send email
+                sendEmail("No configuration file provided...")
 
         # --------------------------------------- End of code --------------------------------------- #  
             
