@@ -6,8 +6,6 @@ The ArcGIS Data Toolkit contains a number of tools and scripts to update and con
 Downloads a zipped up file geodatabase from a download link. Updates data in a geodatabase from the zip file and 
 will update the datasets with the same name in the specified geodatabase.
 
-![DataUpdateFromLinkScreenshot](/images/DataUpdateFromLinkScreenshot.jpg)
-
 #### Update from Zip
 Updates data in a geodatabase from a zip file containing a geodatabase. Will get the latest zip file from update folder and 
 update the datasets with the same name in the specified geodatabase.
