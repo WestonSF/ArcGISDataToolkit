@@ -63,7 +63,7 @@ Creates a summary for each map document in a folder, stating description informa
 #### Setup Data for Replication
 Prepares the datasets specified for replication to another local or remote geodatabase. This will version all the datasets and add GlobalIDs. Locks will be removed from the datasets, so this can take place.
 
-#### Syncronise Datasets (IN DEVELPOMENT)
+#### Syncronise Datasets
 Runs the syncronise changes gp tool to update dataset changes from one geodatabase to another.
 
 #### Capacity Services Wellington Upload (IN DEVELPOMENT)
@@ -130,7 +130,7 @@ Imports LINZ encumbrance data, cleans it up and pushes into feature class
 	* All datasets to be replicated need to be versioned and have global IDs - Run the "Setup data for replication" script.
 	* These datasets then need to be copied to the replication database.
 	* Setup MXD with all datasets to be replicated.
-	* Open up the Distributed Geodatabase toolbar and go through the Create Replica wizard e.g.
+	* Open up the Distributed Geodatabase toolbar and go through the Create Replica wizard for each database. e.g.
         	* One Way - Parent to Child
      		* Select the geodatabase where the datasets have been copied to
      		* Select Register Existing Data Only

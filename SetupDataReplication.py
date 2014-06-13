@@ -4,7 +4,7 @@
 #             and add GlobalIDs. Locks will be removed from the datasets, so this can take place.        
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    12/06/2014
-# Last Updated:    12/06/2014
+# Last Updated:    13/06/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1/10.2
 # Python Version:   2.7

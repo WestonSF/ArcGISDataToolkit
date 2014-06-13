@@ -3,7 +3,7 @@
 # Purpose:    Runs the syncronise changes gp tool to update dataset changes from one geodatabase to another.      
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    12/06/2014
-# Last Updated:    12/06/2014
+# Last Updated:    13/06/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
@@ -31,7 +31,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(*argv): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(sourceGeodatabase,replicatedGeodatabase,replicaName): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -42,6 +42,7 @@ def mainFunction(*argv): # Get parameters from ArcGIS Desktop tool by seperating
             
         # --------------------------------------- Start of code --------------------------------------- #
         
+        arcpy.SynchronizeChanges_management(sourceGeodatabase, replicaName, replicatedGeodatabase, "FROM_GEODATABASE1_TO_2", "IN_FAVOR_OF_GDB1", "BY_OBJECT", "DO_NOT_RECONCILE")
 
         # --------------------------------------- End of code --------------------------------------- #  
             
