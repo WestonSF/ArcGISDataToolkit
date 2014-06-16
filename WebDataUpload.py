@@ -5,40 +5,46 @@
 #             NOTE: If using ArcGIS 10.0 need to set scratch workspace as a folder.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    31/05/2013
-# Last Updated:    18/11/2013
+# Last Updated:    11/06/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0+
 # Python Version:   2.6/2.7
 #--------------------------------
 
-# Import modules and enable data to be overwritten
+# Import modules
 import os
 import sys
-import datetime
+import logging
+import smtplib
+import arcpy
 import string
 import zipfile
 import uuid
-import ftplib
-import arcpy
+import FTPUpload
+
+# Enable data to be overwritten
 arcpy.env.overwriteOutput = True
 
-# Set variables
-logInfo = "false"
-logFile = r""
-sendEmail = "false"
-emailTo = ""
-emailUser = ""
-emailPassword = ""
-emailSubject = ""
-emailMessage = ""
+# Set global variables
+enableLogging = "true" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+logFile = os.path.join(os.path.dirname(__file__), r"Logs\WebDataUpload.log") # os.path.join(os.path.dirname(__file__), "Example.log")
+sendErrorEmail = "true"
+emailTo = "shaun_weston@eagle.co.nz"
+emailUser = "mdcgisserver@gmail.com"
+emailPassword = "Spl1ceGroup"
+emailSubject = "SWDC GIS Server Error"
+emailMessage = "The data upload script on the South Wairarapa GIS Server failed..."
 output = None
 
 # Start of main function
 def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolder,ftpUsername,ftpPassword,gpService): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
-        # Log start
-        if logInfo == "true":
-            loggingFunction(logFile,"start","")
+        # Logging
+        if (enableLogging == "true"):
+            # Setup logging
+            logger, logMessage = setLogging(logFile)
+            # Log start of process
+            logger.info("Process started.")
 
         # --------------------------------------- Start of code --------------------------------------- #
         # Get the arcgis version
@@ -100,7 +106,7 @@ def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolde
                 zipFile = os.path.join(arcpy.env.scratchWorkspace, "WebData-" + str(uuid.uuid1()) + ".zip")               
             else:
                 zipFile = os.path.join(arcpy.env.scratchFolder, "WebData-" + str(uuid.uuid1()) + ".zip")
-            zippedFolder = zipfile.ZipFile(zipFile, "w", allowZip64=True )
+            zippedFolder = zipfile.ZipFile(zipFile, "w", allowZip64=True)
 
             # Zip up the geodatabase
             root_len = len(os.path.abspath(str(tempFolder)))
@@ -110,22 +116,11 @@ def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolde
                 fullpath = os.path.join(root, f)
                 archive_name = os.path.join(archive_root, f)
                 zippedFolder.write(fullpath, archive_name)
+            # Close zip file
             zippedFolder.close()
-
-            arcpy.AddMessage("Sending data to server...")            
-            # Setup connection to FTP site
-            ftpSession = ftplib.FTP(ftpSite,ftpUsername,ftpPassword)        
-            # File to send to FTP site
-            sendZipFile = open(zipFile,'rb')
-            # Send the file to the FTP site
-            # If putting into ftp folder, add folder to string
-            if (ftpFolder):
-                ftpSession.storbinary("STOR " + ftpFolder + "//" + "WebData-" + str(uuid.uuid1()) + ".zip", sendZipFile)
-            else:
-                ftpSession.storbinary("STOR " + "WebData-" + str(uuid.uuid1()) + ".zip", sendZipFile)
-            # Close the file and the FTP session
-            sendZipFile.close()
-            ftpSession.quit()
+            
+            # Send data to server
+            FTPUpload.mainFunction(zipFile,ftpSite,ftpFolder,ftpUsername,ftpPassword)
         else:
             #--------------------------------------------Logging--------------------------------------------#
             arcpy.AddMessage("Process stopped: No datasets provided") 
@@ -137,7 +132,8 @@ def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolde
         # Call geoprocessing service to update data on server
         arcpy.AddMessage("Updating data on server...")
         arcpy.ImportToolbox(gpService, "toolbox")
-        arcpy.DataUpdateFromZip_toolbox("Existing")      
+        arcpy.DataUpdateFromZipSWDC_toolbox("Existing")
+        
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
@@ -150,65 +146,88 @@ def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolde
             # Return the output if there is any
             if output:
                 return output      
-        # Log end
-        if logInfo == "true":
-            loggingFunction(logFile,"end","")        
+        # Logging
+        if (enableLogging == "true"):
+            # Log end of process
+            logger.info("Process ended.")
+            # Remove file handler and close log file            
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
         pass
     # If arcpy error
-    except arcpy.ExecuteError:
-        # Show the message
-        arcpy.AddMessage(arcpy.GetMessages(2))        
-        # Log error
-        if logInfo == "true":  
-            loggingFunction(logFile,"error",arcpy.GetMessages(2))
+    except arcpy.ExecuteError:           
+        # Build and show the error message
+        errorMessage = arcpy.GetMessages(2)   
+        arcpy.AddError(errorMessage)           
+        # Logging
+        if (enableLogging == "true"):
+            # Log error          
+            logger.error(errorMessage)                 
+            # Remove file handler and close log file
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
+        if (sendErrorEmail == "true"):
+            # Send email
+            sendEmail(errorMessage)
     # If python error
     except Exception as e:
-        # Show the message
-        arcpy.AddMessage(e.args[0])          
-        # Log error
-        if logInfo == "true":         
-            loggingFunction(logFile,"error",e.args[0])
+        errorMessage = ""
+        # Build and show the error message
+        for i in range(len(e.args)):
+            if (i == 0):
+                errorMessage = str(e.args[i])
+            else:
+                errorMessage = errorMessage + " " + str(e.args[i])
+        arcpy.AddError(errorMessage)              
+        # Logging
+        if (enableLogging == "true"):
+            # Log error            
+            logger.error(errorMessage)               
+            # Remove file handler and close log file
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
+        if (sendErrorEmail == "true"):
+            # Send email
+            sendEmail(errorMessage)            
 # End of main function
 
-# Start of logging function
-def loggingFunction(logFile,result,info):
-    #Get the time/date
-    setDateTime = datetime.datetime.now()
-    currentDateTime = setDateTime.strftime("%d/%m/%Y - %H:%M:%S")
-    
-    # Open log file to log message and time/date
-    if result == "start":
-        with open(logFile, "a") as f:
-            f.write("---" + "\n" + "Process started at " + currentDateTime)
-    if result == "end":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Process ended at " + currentDateTime + "\n")
-            f.write("---" + "\n")
-    if result == "warning":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Warning: " + info)               
-    if result == "error":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Process ended at " + currentDateTime + "\n")
-            f.write("Error: " + info + "\n")        
-            f.write("---" + "\n")
-        # Send an email
-        if sendEmail == "true":
-            arcpy.AddMessage("Sending email...")
-            # Server and port information
-            smtpserver = smtplib.SMTP("smtp.gmail.com",587) 
-            smtpserver.ehlo()
-            smtpserver.starttls() 
-            smtpserver.ehlo
-            # Login with sender email address and password
-            smtpserver.login(emailUser, emailPassword)
-            # Email content
-            header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
-            message = header + '\n' + emailMessage + '\n' + '\n' + info
-            # Send the email and close the connection
-            smtpserver.sendmail(emailUser, emailTo, message)
-            smtpserver.close()                
-# End of logging function   
+
+# Start of set logging function
+def setLogging(logFile):
+    # Create a logger
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.setLevel(logging.DEBUG)
+    # Setup log message handler
+    logMessage = logging.FileHandler(logFile)
+    # Setup the log formatting
+    logFormat = logging.Formatter("%(asctime)s: %(levelname)s - %(message)s", "%d/%m/%Y - %H:%M:%S")
+    # Add formatter to log message handler
+    logMessage.setFormatter(logFormat)
+    # Add log message handler to logger
+    logger.addHandler(logMessage) 
+
+    return logger, logMessage               
+# End of set logging function
+
+
+# Start of send email function
+def sendEmail(message):
+    # Send an email
+    arcpy.AddMessage("Sending email...")
+    # Server and port information
+    smtpServer = smtplib.SMTP("smtp.gmail.com",587) 
+    smtpServer.ehlo()
+    smtpServer.starttls() 
+    smtpServer.ehlo
+    # Login with sender email address and password
+    smtpServer.login(emailUser, emailPassword)
+    # Email content
+    header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
+    body = header + '\n' + emailMessage + '\n' + '\n' + message
+    # Send the email and close the connection
+    smtpServer.sendmail(emailUser, emailTo, body)    
+# End of send email function
+
 
 # This test allows the script to be used from the operating
 # system command prompt (stand-alone), in a Python IDE, 
