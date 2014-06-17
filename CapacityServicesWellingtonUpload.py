@@ -15,6 +15,8 @@ import sys
 import logging
 import smtplib
 import arcpy
+import DatabaseReplication
+import FTPUpload
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -31,7 +33,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(*argv): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(sourceGeodatabase,destinationFolder,configFile,ftpSite,ftpFolder,ftpUsername,ftpPassword): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -41,8 +43,32 @@ def mainFunction(*argv): # Get parameters from ArcGIS Desktop tool by seperating
             logger.info("Process started.")
             
         # --------------------------------------- Start of code --------------------------------------- #
-        
 
+        # Get a list of the feature datasets in the database
+        arcpy.env.workspace = sourceGeodatabase
+
+        # Set to copy datasets from config
+        datasetsOption = "Config"
+        # Set update mode to new        
+        updateMode = "New"
+        
+        featureDatasetList = arcpy.ListDatasets("", "Feature")
+        # EXTERNAL FUNCTION - Copy over these feature datasets
+        DatabaseReplication.copyDatasets(sourceGeodatabase,destinationFolder,datasetsOption,updateMode,configFile,featureDatasetList,"Feature Dataset")
+
+        # Get a list of the feature classes in the database
+        featureClassList = arcpy.ListFeatureClasses()
+        # EXTERNAL FUNCTION - Copy over these feature classes
+        DatabaseReplication.copyDatasets(sourceGeodatabase,destinationFolder,datasetsOption,updateMode,configFile,featureClassList,"Feature Class")
+
+         # Get a list of the tables in the database
+        tableList = arcpy.ListTables()
+        # EXTERNAL FUNCTION - Copy over these tables
+        DatabaseReplication.copyDatasets(sourceGeodatabase,destinationFolder,datasetsOption,updateMode,configFile,tableList,"Table")  
+
+        # EXTERNAL FUNCTION - Send data to server
+        FTPUpload.mainFunction(destinationFolder,ftpSite,ftpFolder,ftpUsername,ftpPassword)
+            
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   

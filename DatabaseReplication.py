@@ -125,9 +125,9 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
     if (enableLogging == "true"):
         # Setup logging
         logger, logMessage = setLogging(logFile)
-            
+       
     # Loop through the datasets
-    for dataset in datasetList:      
+    for dataset in datasetList:   
         # If feature datasets
         if (dataType == "Feature Dataset"):  
             # Get a list of the feature classes in the feature dataset
@@ -137,7 +137,7 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
             # Reassign list
             dataset2List = datasetList
             datasetList = []
-            
+           
         # Change dataset name to be just name (remove user and schema if SDE database) - Used just for source dataset
         splitDataset = dataset.split('.')
         newDataset = splitDataset[-1]

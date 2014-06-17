@@ -5,7 +5,7 @@
 #             NOTE: If using ArcGIS 10.0 need to set scratch workspace as a folder.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    31/05/2013
-# Last Updated:    11/06/2014
+# Last Updated:    17/06/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0+
 # Python Version:   2.6/2.7
@@ -26,14 +26,14 @@ import FTPUpload
 arcpy.env.overwriteOutput = True
 
 # Set global variables
-enableLogging = "true" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
 logFile = os.path.join(os.path.dirname(__file__), r"Logs\WebDataUpload.log") # os.path.join(os.path.dirname(__file__), "Example.log")
-sendErrorEmail = "true"
-emailTo = "shaun_weston@eagle.co.nz"
-emailUser = "mdcgisserver@gmail.com"
-emailPassword = "Spl1ceGroup"
-emailSubject = "SWDC GIS Server Error"
-emailMessage = "The data upload script on the South Wairarapa GIS Server failed..."
+sendErrorEmail = "false"
+emailTo = ""
+emailUser = ""
+emailPassword = ""
+emailSubject = ""
+emailMessage = ""
 output = None
 
 # Start of main function
@@ -109,9 +109,11 @@ def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolde
             zippedFolder = zipfile.ZipFile(zipFile, "w", allowZip64=True)
 
             # Zip up the geodatabase
-            root_len = len(os.path.abspath(str(tempFolder)))
-            for root, dirs, files in os.walk(str(tempFolder)):
+            root_len = len(os.path.abspath(str(fileFolder)))
+            # For each of the directories in the folder
+            for root, dirs, files in os.walk(str(fileFolder)):
               archive_root = os.path.abspath(root)[root_len:]
+              # For each file
               for f in files:
                 fullpath = os.path.join(root, f)
                 archive_name = os.path.join(archive_root, f)
@@ -119,7 +121,7 @@ def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolde
             # Close zip file
             zippedFolder.close()
             
-            # Send data to server
+            # EXTERNAL FUNCTION - Send data to server
             FTPUpload.mainFunction(zipFile,ftpSite,ftpFolder,ftpUsername,ftpPassword)
         else:
             #--------------------------------------------Logging--------------------------------------------#

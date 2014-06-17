@@ -3,7 +3,7 @@
 # Purpose:    Uploads a file to an FTP site.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    16/06/2014
-# Last Updated:    16/06/2014
+# Last Updated:    17/06/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1/10.2
 # Python Version:   2.6/2.7
@@ -21,18 +21,18 @@ import ftplib
 arcpy.env.overwriteOutput = True
 
 # Set global variables
-enableLogging = "true" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
 logFile = os.path.join(os.path.dirname(__file__), r"Logs\FTPUpload.log") # os.path.join(os.path.dirname(__file__), "Example.log")
-sendErrorEmail = "true"
-emailTo = "shaun_weston@eagle.co.nz"
-emailUser = "mdcgisserver@gmail.com"
-emailPassword = "Spl1ceGroup"
-emailSubject = "SWDC GIS Server Error"
-emailMessage = "The FTP upload script on the South Wairarapa GIS Server failed..."
+sendErrorEmail = "false"
+emailTo = ""
+emailUser = ""
+emailPassword = ""
+emailSubject = ""
+emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(file,ftpSite,ftpFolder,ftpUsername,ftpPassword): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(fileFolder,ftpSite,ftpFolder,ftpUsername,ftpPassword): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -47,21 +47,50 @@ def mainFunction(file,ftpSite,ftpFolder,ftpUsername,ftpPassword): # Get paramete
         # Setup connection to FTP site
         ftpSession = ftplib.FTP(ftpSite,ftpUsername,ftpPassword)
 
-        # File to send to FTP site
-        sendZipFile = open(file,"rb")
-
-        # Get just the filename
-        splitFile = file.split('\\')
-        file = splitFile[-1]
-              
-        # If putting into ftp folder, add folder to string
-        if (ftpFolder):
-            ftpSession.storbinary("STOR " + ftpFolder + "//" + file, sendZipFile)
-        else:
-            ftpSession.storbinary("STOR " + file, sendZipFile)
+        # If a folder
+        if (os.path.isdir(fileFolder) == 1):
+            root_len = len(os.path.abspath(str(fileFolder)))
+            # For each of the directories in the folder
+            for root, dirs, files in os.walk(str(fileFolder)):
+              archive_root = os.path.abspath(root)[root_len:]
+              # For each file
+              for f in files:
+                fullpath = os.path.join(root, f)
                 
-        # Close the file and the FTP session
-        sendZipFile.close()
+                # File to send to FTP site
+                sendFile = open(fullpath,"rb")                
+
+                # Get just the filename
+                splitFile = fullpath.split('\\')
+                file = splitFile[-1]
+
+                # If putting into ftp folder, add folder to string
+                if (ftpFolder):
+                    ftpSession.storbinary("STOR " + ftpFolder + "//" + file, sendFile)
+                else:
+                    ftpSession.storbinary("STOR " + file, sendFile)
+                        
+                # Close the file
+                sendFile.close()            
+        # If a file
+        else:  
+            # File to send to FTP site
+            sendFile = open(fileFolder,"rb")
+
+            # Get just the filename
+            splitFile = fileFolder.split('\\')
+            file = splitFile[-1]
+                  
+            # If putting into ftp folder, add folder to string
+            if (ftpFolder):
+                ftpSession.storbinary("STOR " + ftpFolder + "//" + file, sendFile)
+            else:
+                ftpSession.storbinary("STOR " + file, sendFile)
+                    
+            # Close the file
+            sendFile.close()
+
+        # Close the FTP session            
         ftpSession.quit()
         
         # --------------------------------------- End of code --------------------------------------- #  
