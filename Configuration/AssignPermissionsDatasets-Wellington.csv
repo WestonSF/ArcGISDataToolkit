@@ -1,0 +1,4 @@
+dataset,view,edit
+Database Connections\WCCNew (gisadmin).sde\WCCNew.GISADMIN.Rates_1,"gisadmin,gisviewer,giseditor",gisadmin
+Database Connections\WCCNew (gisadmin).sde\WCCNew.GISADMIN.drain_sewer_pipes,"gisadmin,gisviewer",gisadmin
+Database Connections\WCCNew (gisadmin).sde\WCCNew.GISADMIN.SDE_LandBase,"gisadmin,gisviewer,giseditor","gisadmin,gisviewer,giseditor"

@@ -66,6 +66,11 @@ def mainFunction(sourceGeodatabase,destinationFolder,configFile,ftpSite,ftpFolde
         # EXTERNAL FUNCTION - Copy over these tables
         DatabaseReplication.copyDatasets(sourceGeodatabase,destinationFolder,datasetsOption,updateMode,configFile,tableList,"Table")  
 
+        # Join tables onto feature classes
+
+        # Remove unecessary fields and clean up data for FTP        
+
+
         # EXTERNAL FUNCTION - Send data to server
         FTPUpload.mainFunction(destinationFolder,ftpSite,ftpFolder,ftpUsername,ftpPassword)
             
