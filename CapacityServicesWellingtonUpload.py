@@ -15,6 +15,7 @@ import sys
 import logging
 import smtplib
 import arcpy
+import csv
 import DatabaseReplication
 import FTPUpload
 
@@ -67,10 +68,39 @@ def mainFunction(sourceGeodatabase,destinationFolder,configFile,ftpSite,ftpFolde
         DatabaseReplication.copyDatasets(sourceGeodatabase,destinationFolder,datasetsOption,updateMode,configFile,tableList,"Table")  
 
         # Join tables onto feature classes
+        # Set CSV delimiter                         
+        csvDelimiter = ","
+        # Open the CSV file
+        with open(configFile, 'rb') as csvFile:
+            # Read the CSV file
+            rows = csv.reader(csvFile, delimiter=csvDelimiter)
+            
+            # For each row in the CSV
+            count = 0
+            for row in rows:
+                # Ignore the first line containing headers
+                if (count > 0):
+                    sourceDataset = row[0]
+                    destinationDataset = row[1]
+                    version = row[2]
+                    joinTable = row[3]
+                    removeFields = row[4]
+                                
+                    # Join the table to the feature class if there is a join table provided
+                    if joinTable:
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.info("Joining dataset " + joinTable + " to dataset " + destinationDataset + "...")                                 
+                        arcpy.AddMessage("Joining dataset " + joinTable + " to dataset " + destinationDataset + "...") 
+                        
+                        arcpy.JoinField_management(os.path.join(destinationFolder, destinationDataset), "Feature_ID", os.path.join(sourceGeodatabase, joinTable), "asset_id")
 
-        # Remove unecessary fields and clean up data for FTP        
-
-
+                    # Rename fields
+                    
+                    # Remove unecessary fields and clean up data for FTP
+                    
+                count = count + 1
+        stop
         # EXTERNAL FUNCTION - Send data to server
         FTPUpload.mainFunction(destinationFolder,ftpSite,ftpFolder,ftpUsername,ftpPassword)
             

@@ -16,6 +16,8 @@ import sys
 import logging
 import smtplib
 import arcpy
+import csv
+import string
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -58,7 +60,27 @@ def mainFunction(configFile): # Get parameters from ArcGIS Desktop tool by seper
                     # Ignore the first line containing headers
                     if (count > 0):
                         # Get the full dataset name
-                        dataset = row[0]        
+                        dataset = row[0]
+                        # Get the permissions to be assigned to the dataset
+                        viewUsers = row[1]
+                        viewUsers = string.split(viewUsers, ",")           
+                        # For each user
+                        for viewUser in viewUsers:
+                            arcpy.AddMessage("Assigning View Permission to " + viewUser + " on dataset " + dataset + "...")
+
+                            # Check the privileges for the user ont he dataset first
+                            
+                            # Change the privileges for the user on the dataset
+                            arcpy.ChangePrivileges_management(dataset, viewUser, "GRANT", "")
+                            
+                        editUsers = row[2]
+                        editUsers = string.split(editUsers, ",")    
+                        # For each user
+                        for editUser in editUsers:
+                            arcpy.AddMessage("Assigning Edit Permission to " + editUser + " on dataset " + dataset + "...")                        
+                            # Change the privileges for the user on the dataset
+                            arcpy.ChangePrivileges_management(dataset, editUser, "GRANT", "GRANT")
+                            
                     count = count + 1
         # No configuration provided
         else:
