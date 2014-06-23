@@ -23,7 +23,7 @@ arcpy.env.overwriteOutput = True
 
 # Set global variables
 enableLogging = "true" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = os.path.join(os.path.dirname(__file__), r"Logs\SetupDataReplication.log") # os.path.join(os.path.dirname(__file__), "Example.log")
+logFile = os.path.join(os.path.dirname(__file__), r"D:\Arc\Scripts\Migration\Logs\SetupDataReplication.log") # os.path.join(os.path.dirname(__file__), "Example.log")
 sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""

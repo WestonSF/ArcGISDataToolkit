@@ -3,7 +3,7 @@
 # Purpose:    Runs the syncronise changes gp tool to update dataset changes from one geodatabase to another.      
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    12/06/2014
-# Last Updated:    13/06/2014
+# Last Updated:    23/06/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
@@ -15,13 +15,14 @@ import sys
 import logging
 import smtplib
 import arcpy
+import string
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
 
 # Set global variables
 enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
+logFile = os.path.join(os.path.dirname(__file__), r"") # os.path.join(os.path.dirname(__file__), "Example.log")
 sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
@@ -31,7 +32,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(sourceGeodatabase,replicatedGeodatabase,replicaName): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(sourceGeodatabase,replicatedGeodatabase,replicaName,featureClasses,tables): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -41,8 +42,43 @@ def mainFunction(sourceGeodatabase,replicatedGeodatabase,replicaName): # Get par
             logger.info("Process started.")
             
         # --------------------------------------- Start of code --------------------------------------- #
-        
-        arcpy.SynchronizeChanges_management(sourceGeodatabase, replicaName, replicatedGeodatabase, "FROM_GEODATABASE1_TO_2", "IN_FAVOR_OF_GDB1", "BY_OBJECT", "DO_NOT_RECONCILE")
+
+        # Split the replicas string in case there are more than one
+        replica = string.split(replicaName, ",")
+
+        # For each replica
+        for replica in replica: 
+            arcpy.AddMessage("Syncing changes for " + replica + " replica...")
+            # Logging
+            if (enableLogging == "true"):
+                logger.info("Syncing changes for " + replica + " replica...")
+            # Sync changes between databases for the replica
+            arcpy.SynchronizeChanges_management(sourceGeodatabase, replica, replicatedGeodatabase, "FROM_GEODATABASE1_TO_2", "IN_FAVOR_OF_GDB1", "BY_OBJECT", "DO_NOT_RECONCILE")
+
+        # Copy over views and custom tables - Copy used, will fail if locks present on FGDB.
+        if (len(tables) > 0):
+            # Remove out apostrophes
+            tableList = string.split(str(tables).replace("'", ""), ";")       
+            # Copy over tables
+            for table in tableList:
+                # Logging
+                if (enableLogging == "true"):
+                    logger.info("Copying Over Table " + table + "...")                                
+                arcpy.AddMessage("Copying Over Table " + table + "...")               
+                tableName = arcpy.Describe(table)
+                arcpy.CopyRows_management(table, os.path.join(replicatedGeodatabase, tableName.name), "")
+                
+        if (len(featureClasses) > 0):        
+            # Remove out apostrophes
+            featureClassList = string.split(str(featureClasses).replace("'", ""), ";")           
+            # Copy over feature classes
+            for featureClass in featureClassList:
+                # Logging
+                if (enableLogging == "true"):
+                    logger.info("Copying Over Feature Class " + featureClass + "...")                                
+                arcpy.AddMessage("Copying Over Feature Class " + featureClass + "...")            
+                featureClassName = arcpy.Describe(featureClass)
+                arcpy.CopyFeatures_management(featureClass, os.path.join(replicatedGeodatabase, featureClassName.name), "", "0", "0", "0")
 
         # --------------------------------------- End of code --------------------------------------- #  
             
