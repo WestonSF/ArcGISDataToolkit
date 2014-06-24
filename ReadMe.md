@@ -72,7 +72,7 @@ Runs the syncronise changes gp tool to update dataset changes from one geodataba
 #### Capacity Services Wellington Upload (IN DEVELPOMENT)
 Updates services data for Capacity Services Wellington, packages this data up and uploads to an FTP site for download by Capacity.
 
-#### Assign Permissions on Datasets (IN DEVELPOMENT)
+#### Assign Permissions on Datasets
 Updates permissions for datasets specified in a CSV file. This will go through CSV file and make sure datasets have the permissions specified for the relevant groups and users.
 
 #### LINZ Data Service Download (IN DEVELPOMENT)

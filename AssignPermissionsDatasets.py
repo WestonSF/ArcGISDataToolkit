@@ -4,7 +4,7 @@
 #             the permissions specified for the relevant groups and users.      
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    12/06/2014
-# Last Updated:    17/06/2014
+# Last Updated:    24/06/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
@@ -34,7 +34,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(configFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(databaseUsers,configFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -53,34 +53,71 @@ def mainFunction(configFile): # Get parameters from ArcGIS Desktop tool by seper
             with open(configFile, 'rb') as csvFile:
                 # Read the CSV file
                 rows = csv.reader(csvFile, delimiter=csvDelimiter)
-                
+
+                # Get all the database users
+                databaseUsers = string.split(databaseUsers, ",")
+            
                 # For each row in the CSV                              
                 count = 0
                 for row in rows:
                     # Ignore the first line containing headers
-                    if (count > 0):
+                    if (count > 0):                       
                         # Get the full dataset name
                         dataset = row[0]
                         # Get the permissions to be assigned to the dataset
                         viewUsers = row[1]
-                        viewUsers = string.split(viewUsers, ",")           
-                        # For each user
-                        for viewUser in viewUsers:
-                            arcpy.AddMessage("Assigning View Permission to " + viewUser + " on dataset " + dataset + "...")
-
-                            # Check the privileges for the user ont he dataset first
-                            
-                            # Change the privileges for the user on the dataset
-                            arcpy.ChangePrivileges_management(dataset, viewUser, "GRANT", "")
-                            
+                        viewUsers = string.split(viewUsers, ",")
                         editUsers = row[2]
-                        editUsers = string.split(editUsers, ",")    
-                        # For each user
-                        for editUser in editUsers:
-                            arcpy.AddMessage("Assigning Edit Permission to " + editUser + " on dataset " + dataset + "...")                        
-                            # Change the privileges for the user on the dataset
-                            arcpy.ChangePrivileges_management(dataset, editUser, "GRANT", "GRANT")
+                        editUsers = string.split(editUsers, ",")
+                        
+                        # For each database user
+                        for databaseUser in databaseUsers:
+                            # Set the default value for privileges assigned
+                            viewPrivilegesAssigned = "false"
+                            editPrivilegesAssigned = "false"
                             
+                            # For each user
+                            for viewUser in viewUsers:
+                                # If the database user has view privileges
+                                if (databaseUser == viewUser):
+                                    # Logging
+                                    if (enableLogging == "true"):
+                                        logger.info("Assigning View Permission to " + viewUser + " on dataset " + dataset + "...")  
+                                    arcpy.AddMessage("Assigning View Permission to " + viewUser + " on dataset " + dataset + "...")                                
+                                    # Change the view privileges for the user on the dataset
+                                    arcpy.ChangePrivileges_management(dataset, viewUser, "GRANT", "")
+                                    viewPrivilegesAssigned = "true"
+
+                            # If privileges haven't been granted for this user on this dataset
+                            if (viewPrivilegesAssigned == "false"):
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Denying View Permission to " + databaseUser + " on dataset " + dataset + "...")                               
+                                arcpy.AddMessage("Denying View Permission to " + databaseUser + " on dataset " + dataset + "...")
+                                # Change the view privileges for the user on the dataset
+                                arcpy.ChangePrivileges_management(dataset, databaseUser, "REVOKE", "")
+                                
+                            # For each user
+                            for editUser in editUsers:
+                                # If the database user has edit privileges
+                                if (databaseUser == editUser):
+                                    # Logging
+                                    if (enableLogging == "true"):
+                                        logger.info("Assigning Edit Permission to " + editUser + " on dataset " + dataset + "...")                                 
+                                    arcpy.AddMessage("Assigning Edit Permission to " + editUser + " on dataset " + dataset + "...")                        
+                                    # Change the edit privileges for the user on the dataset
+                                    arcpy.ChangePrivileges_management(dataset, editUser, "GRANT", "GRANT")
+                                    editPrivilegesAssigned = "true"
+                                    
+                            # If privileges haven't been granted for this user on this dataset
+                            if (editPrivilegesAssigned == "false"):
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Denying Edit Permission to " + databaseUser + " on dataset " + dataset + "...")                                 
+                                arcpy.AddMessage("Denying Edit Permission to " + databaseUser + " on dataset " + dataset + "...")
+                                # Change the edit privileges for the user on the dataset
+                                arcpy.ChangePrivileges_management(dataset, databaseUser, "AS_IS", "REVOKE")
+                                
                     count = count + 1
         # No configuration provided
         else:
