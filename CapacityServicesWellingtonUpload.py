@@ -3,7 +3,7 @@
 # Purpose:    Updates services data for Capacity Services Wellington, packages this data up and uploads to an FTP site for download by Capacity.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    12/06/2014
-# Last Updated:    12/06/2014
+# Last Updated:    24/06/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
@@ -16,6 +16,7 @@ import logging
 import smtplib
 import arcpy
 import csv
+import string
 import DatabaseReplication
 import FTPUpload
 
@@ -34,7 +35,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(sourceGeodatabase,destinationFolder,configFile,ftpSite,ftpFolder,ftpUsername,ftpPassword): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(sourceGeodatabase,configFile,ftpSite,ftpFolder,ftpUsername,ftpPassword): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -47,12 +48,21 @@ def mainFunction(sourceGeodatabase,destinationFolder,configFile,ftpSite,ftpFolde
 
         # Get a list of the feature datasets in the database
         arcpy.env.workspace = sourceGeodatabase
-
+        
         # Set to copy datasets from config
         datasetsOption = "Config"
         # Set update mode to new        
         updateMode = "New"
-        
+
+        # Setup the destination folder as a temporary folder
+        destinationFolder = os.path.join(arcpy.env.scratchFolder, "CapacityServices")
+        if not os.path.exists(destinationFolder):
+            os.makedirs(destinationFolder)        
+        # Logging
+        if (enableLogging == "true"):
+            logger.info("Temporary desination folder - " + destinationFolder)                                  
+        arcpy.AddMessage("Temporary desination folder - " + destinationFolder) 
+
         featureDatasetList = arcpy.ListDatasets("", "Feature")
         # EXTERNAL FUNCTION - Copy over these feature datasets
         DatabaseReplication.copyDatasets(sourceGeodatabase,destinationFolder,datasetsOption,updateMode,configFile,featureDatasetList,"Feature Dataset")
@@ -84,26 +94,52 @@ def mainFunction(sourceGeodatabase,destinationFolder,configFile,ftpSite,ftpFolde
                     destinationDataset = row[1]
                     version = row[2]
                     joinTable = row[3]
-                    removeFields = row[4]
+                    renameFields = row[4]                    
+                    removeFields = row[5]
                                 
                     # Join the table to the feature class if there is a join table provided
                     if joinTable:
+                        # Copy table to memory first
+                        arcpy.CopyRows_management(os.path.join(sourceGeodatabase, joinTable), "in_memory\Tbl", "")
+
+                        # If renaming fields in table
+                        if renameFields:
+                            renameFields = string.split(renameFields, ";")
+                            # For each rename field
+                            for renameField in renameFields:
+                                # Get the current field name and the new field name
+                                fields = string.split(renameField, ":")
+                                # Logging
+                                if (enableLogging == "true"):
+                                    logger.info("Renaming field in " + joinTable + " from " + fields[0] + " to " + fields[1] + "...")                                  
+                                arcpy.AddMessage("Renaming field in " + joinTable + " from " + fields[0] + " to " + fields[1] + "...") 
+
+                                # Alter field name
+                                arcpy.AlterField_management("in_memory\Tbl", fields[0], fields[1], fields[1])
+
                         # Logging
                         if (enableLogging == "true"):
                             logger.info("Joining dataset " + joinTable + " to dataset " + destinationDataset + "...")                                 
-                        arcpy.AddMessage("Joining dataset " + joinTable + " to dataset " + destinationDataset + "...") 
+                        arcpy.AddMessage("Joining dataset " + joinTable + " to dataset " + destinationDataset + "...")
                         
-                        arcpy.JoinField_management(os.path.join(destinationFolder, destinationDataset), "Feature_ID", os.path.join(sourceGeodatabase, joinTable), "asset_id")
+                        # Join on table to feature class
+                        arcpy.JoinField_management(os.path.join(destinationFolder, destinationDataset), "Feature_ID", "in_memory\Tbl", "asset_id")
 
-                    # Rename fields
-                    
-                    # Remove unecessary fields and clean up data for FTP
-                    
+                    # Remove unecessary fields if provided
+                    if removeFields:
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.info("Removing fields " + removeFields + " from dataset " + destinationDataset + "...")                                 
+                        arcpy.AddMessage("Removing fields " + removeFields + " from dataset " + destinationDataset + "...")
+
+                        # Remove unecessary fields
+                        arcpy.DeleteField_management(os.path.join(destinationFolder, destinationDataset), removeFields)
+
                 count = count + 1
-        stop
+
         # EXTERNAL FUNCTION - Send data to server
         FTPUpload.mainFunction(destinationFolder,ftpSite,ftpFolder,ftpUsername,ftpPassword)
-            
+
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
