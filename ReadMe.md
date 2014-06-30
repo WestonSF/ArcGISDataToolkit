@@ -75,6 +75,9 @@ Updates services data for Capacity Services Wellington, packages this data up an
 #### Assign Permissions on Datasets
 Updates permissions for datasets specified in a CSV file. This will go through CSV file and make sure datasets have the permissions specified for the relevant groups and users.
 
+#### Export Metadata
+Exports all metadata in a geodatabase out to a text file.
+
 #### LINZ Data Service Download (IN DEVELPOMENT)
 Downloads the data  from the LINZ data service by either downloading the entire dataset for WFS or downloading the changeset and updating the data.
 
