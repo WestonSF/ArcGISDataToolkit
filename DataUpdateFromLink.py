@@ -8,21 +8,23 @@
 #             no locks on geodatabase.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    05/09/2013
-# Last Updated:    11/06/2014
+# Last Updated:    11/07/2014
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.1+
+# ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
 #--------------------------------
 
 # Import modules and enable data to be overwritten
 import os
 import sys
-import datetime
+import logging
 import urllib2
 import zipfile
 import uuid
 import glob
 import arcpy
+
+# Enable data to be overwritten
 arcpy.env.overwriteOutput = True
 
 # Set global variables
@@ -39,9 +41,12 @@ output = None
 # Start of main function
 def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
-        # Log start
-        if logInfo == "true":
-            loggingFunction(logFile,"start","")
+        # Logging
+        if (enableLogging == "true"):
+            # Setup logging
+            logger, logMessage = setLogging(logFile)
+            # Log start of process
+            logger.info("Process started.")
 
         # --------------------------------------- Start of code --------------------------------------- #
 
@@ -49,7 +54,7 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
         # Custom proxy
         if (setProxy == "true"):
             # Setup the proxy
-            proxy = urllib2.ProxyHandler({"http": "http://themerovingian2:8080"})
+            proxy = urllib2.ProxyHandler({"http": ""})
             openURL = urllib2.build_opener(proxy)
             # Install the proxy
             urllib2.install_opener(openURL)
@@ -74,7 +79,7 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
 
         # Get the newest unzipped database from the scratch folder
         database = max(glob.iglob(arcpy.env.scratchFolder + r"\*.gdb"), key=os.path.getmtime)
-
+        
         # Assign the geodatbase workspace and load in the datasets to the lists
         arcpy.env.workspace = database
         featureclassList = arcpy.ListFeatureClasses()
@@ -144,65 +149,88 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
             # Return the output if there is any
             if output:
                 return output      
-        # Log end
-        if logInfo == "true":
-            loggingFunction(logFile,"end","")        
+        # Logging
+        if (enableLogging == "true"):
+            # Log end of process
+            logger.info("Process ended.")
+            # Remove file handler and close log file            
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
         pass
     # If arcpy error
-    except arcpy.ExecuteError:
-        # Show the message
-        arcpy.AddMessage(arcpy.GetMessages(2))        
-        # Log error
-        if logInfo == "true":  
-            loggingFunction(logFile,"error",arcpy.GetMessages(2))
+    except arcpy.ExecuteError:           
+        # Build and show the error message
+        errorMessage = arcpy.GetMessages(2)   
+        arcpy.AddError(errorMessage)           
+        # Logging
+        if (enableLogging == "true"):
+            # Log error          
+            logger.error(errorMessage)                 
+            # Remove file handler and close log file
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
+        if (sendErrorEmail == "true"):
+            # Send email
+            sendEmail(errorMessage)
     # If python error
     except Exception as e:
-        # Show the message
-        arcpy.AddMessage(e.args[0])          
-        # Log error
-        if logInfo == "true":         
-            loggingFunction(logFile,"error",e.args[0])
+        errorMessage = ""
+        # Build and show the error message
+        for i in range(len(e.args)):
+            if (i == 0):
+                errorMessage = str(e.args[i])
+            else:
+                errorMessage = errorMessage + " " + str(e.args[i])
+        arcpy.AddError(errorMessage)              
+        # Logging
+        if (enableLogging == "true"):
+            # Log error            
+            logger.error(errorMessage)               
+            # Remove file handler and close log file
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
+        if (sendErrorEmail == "true"):
+            # Send email
+            sendEmail(errorMessage)            
 # End of main function
 
-# Start of logging function
-def loggingFunction(logFile,result,info):
-    #Get the time/date
-    setDateTime = datetime.datetime.now()
-    currentDateTime = setDateTime.strftime("%d/%m/%Y - %H:%M:%S")
-    
-    # Open log file to log message and time/date
-    if result == "start":
-        with open(logFile, "a") as f:
-            f.write("---" + "\n" + "Process started at " + currentDateTime)
-    if result == "end":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Process ended at " + currentDateTime + "\n")
-            f.write("---" + "\n")
-    if result == "warning":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Warning: " + info)               
-    if result == "error":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Process ended at " + currentDateTime + "\n")
-            f.write("Error: " + info + "\n")        
-            f.write("---" + "\n")
-        # Send an email
-        if sendEmail == "true":
-            arcpy.AddMessage("Sending email...")
-            # Server and port information
-            smtpserver = smtplib.SMTP("smtp.gmail.com",587) 
-            smtpserver.ehlo()
-            smtpserver.starttls() 
-            smtpserver.ehlo
-            # Login with sender email address and password
-            smtpserver.login(emailUser, emailPassword)
-            # Email content
-            header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
-            message = header + '\n' + emailMessage + '\n' + '\n' + info
-            # Send the email and close the connection
-            smtpserver.sendmail(emailUser, emailTo, message)
-            smtpserver.close()                
-# End of logging function     
+
+# Start of set logging function
+def setLogging(logFile):
+    # Create a logger
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.setLevel(logging.DEBUG)
+    # Setup log message handler
+    logMessage = logging.FileHandler(logFile)
+    # Setup the log formatting
+    logFormat = logging.Formatter("%(asctime)s: %(levelname)s - %(message)s", "%d/%m/%Y - %H:%M:%S")
+    # Add formatter to log message handler
+    logMessage.setFormatter(logFormat)
+    # Add log message handler to logger
+    logger.addHandler(logMessage) 
+
+    return logger, logMessage               
+# End of set logging function
+
+
+# Start of send email function
+def sendEmail(message):
+    # Send an email
+    arcpy.AddMessage("Sending email...")
+    # Server and port information
+    smtpServer = smtplib.SMTP("smtp.gmail.com",587) 
+    smtpServer.ehlo()
+    smtpServer.starttls() 
+    smtpServer.ehlo
+    # Login with sender email address and password
+    smtpServer.login(emailUser, emailPassword)
+    # Email content
+    header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
+    body = header + '\n' + emailMessage + '\n' + '\n' + message
+    # Send the email and close the connection
+    smtpServer.sendmail(emailUser, emailTo, body)    
+# End of send email function
+
 
 # This test allows the script to be used from the operating
 # system command prompt (stand-alone), in a Python IDE, 
@@ -213,4 +241,3 @@ if __name__ == '__main__':
     argv = tuple(arcpy.GetParameterAsText(i)
         for i in range(arcpy.GetArgumentCount()))
     mainFunction(*argv)
-    
