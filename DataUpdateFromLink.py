@@ -112,10 +112,10 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
                             arcpy.Append_management(os.path.join(arcpy.env.workspace, eachFeatureclass), os.path.join(geodatabase, eachFeatureclass), "NO_TEST", "", "")
                     else:
                         # Log warning
-                        arcpy.AddMessage("Warning: " + os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated")
-                        # Open log file to set warning
-                        with open(logFile, "a") as f:
-                            loggingFunction(logFile,"warning",os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated")
+                        arcpy.AddWarning("Warning: " + os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated")
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.warning(os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated")
                             
         if (len(tableList) > 0):    
             # Loop through of the tables
@@ -133,10 +133,10 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
                         arcpy.Append_management(os.path.join(arcpy.env.workspace, eachTable), os.path.join(geodatabase, eachTable), "NO_TEST", "", "")
                     else:
                         # Log warning
-                        arcpy.AddMessage("Warning: " + os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")
-                        # Open log file to set warning
-                        with open(logFile, "a") as f:
-                            loggingFunction(logFile,"warning",os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")                  
+                        arcpy.AddWarning("Warning: " + os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.warning(os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")                      
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
