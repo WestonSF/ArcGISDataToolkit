@@ -8,7 +8,7 @@ will update the datasets with the same name in the specified geodatabase.
 
 #### Update from Zip
 Updates data in a geodatabase from a zip file containing a geodatabase. Will get the latest zip file from update folder and 
-update the datasets with the same name in the specified geodatabase.
+update the datasets with the same name in the specified geodatabase. If dataset doesn't exist will copy it over.
 
 #### Update from CSV
 Updates data in a geodatabase from a CSV file. Will get the latest zip CSV from update folder and 

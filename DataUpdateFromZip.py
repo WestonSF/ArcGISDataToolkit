@@ -3,32 +3,35 @@
 # Purpose:    Updates data in a geodatabase from a zip file containing a geodatabase. Will get latest
 #             zip file from update folder. Two update options:
 #             Existing Mode - Will only update datasets that have the same name and will delete and
-#             append records, so field names need to be the same.
+#             append records, so field names need to be the same. If dataset doesn't exist will copy it
+#             over.
 #             New Mode - Copies all datasets from the geodatabase and loads into geodatabase. Requires
 #             no locks on geodatabase.
 #             NOTE: If using ArcGIS 10.0 need to set scratch workspace as folder.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    31/05/2013
-# Last Updated:    18/11/2013
+# Last Updated:    14/07/2014
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.0+
+# ArcGIS Version:   10.0/10.1/10.2
 # Python Version:   2.6/2.7
 #--------------------------------
 
-# Import modules and enable data to be overwritten
+# Import modules
 import os
 import sys
-import datetime
+import logging
 import zipfile
 import uuid
 import glob
 import arcpy
+
+# Enable data to be overwritten
 arcpy.env.overwriteOutput = True
 
-# Set variables
-logInfo = "false"
-logFile = r""
-sendEmail = "false"
+# Set global variables
+enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
+sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
 emailPassword = ""
@@ -39,11 +42,15 @@ output = None
 # Start of main function
 def mainFunction(updateFolder,updateMode,geodatabase): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
-        # Log start
-        if logInfo == "true":
-            loggingFunction(logFile,"start","")
-
-        # --------------------------------------- Start of code --------------------------------------- #      
+        # Logging
+        if (enableLogging == "true"):
+            # Setup logging
+            logger, logMessage = setLogging(logFile)
+            # Log start of process
+            logger.info("Process started.")
+            
+        # --------------------------------------- Start of code --------------------------------------- #
+        
         # Get the arcgis version
         arcgisVersion = arcpy.GetInstallInfo()['Version']
 
@@ -77,41 +84,67 @@ def mainFunction(updateFolder,updateMode,geodatabase): # Get parameters from Arc
                describeDataset = arcpy.Describe(eachFeatureclass)
                # If update mode is then copy, otherwise delete and appending records                
                if (updateMode == "New"):
+                   # Logging
+                   arcpy.AddMessage("Copying over feature class - " + os.path.join(geodatabase, eachFeatureclass) + "...")
+                   if (enableLogging == "true"):
+                      logger.info("Copying over feature class - " + os.path.join(geodatabase, eachFeatureclass) + "...")
+                            
                    # Copy feature class into geodatabase using the same dataset name
                    arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(geodatabase, describeDataset.name), "", "0", "0", "0")
                else:
                     # If dataset exists in geodatabase, delete features and load in new data
                     if arcpy.Exists(os.path.join(geodatabase, eachFeatureclass)):
+                        # Logging
+                        arcpy.AddMessage("Updating feature class - " + os.path.join(geodatabase, eachFeatureclass) + "...")
+                        if (enableLogging == "true"):
+                           logger.info("Updating feature class - " + os.path.join(geodatabase, eachFeatureclass) + "...")
+         
                         arcpy.DeleteFeatures_management(os.path.join(geodatabase, eachFeatureclass))
                         arcpy.Append_management(os.path.join(arcpy.env.workspace, eachFeatureclass), os.path.join(geodatabase, eachFeatureclass), "NO_TEST", "", "")
                     else:
-                        #--------------------------------------------Logging--------------------------------------------#
-                        arcpy.AddMessage("Warning: " + os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated") 
-                        # Open log file to set warning
-                        with open(logFile, "a") as f:
-                            loggingFunction(logFile,"warning",os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated")
-                        #-----------------------------------------------------------------------------------------------#
+                        # Log warning
+                        arcpy.AddWarning("Warning: " + os.path.join(geodatabase, eachFeatureclass) + " does not exist. Copying over...")
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.warning(os.path.join(geodatabase, eachFeatureclass) + " does not exist. Copying over...")
                             
+                        # Copy feature class into geodatabase using the same dataset name
+                        arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(geodatabase, describeDataset.name), "", "0", "0", "0")
+                       
         if (len(tableList) > 0):    
             # Loop through of the tables
             for eachTable in tableList:
                # Create a Describe object from the dataset
                describeDataset = arcpy.Describe(eachTable)
                # If update mode is then copy, otherwise delete and appending records                
-               if (updateMode == "New"):               
-                   # Copy feature class into geodatabase using the same dataset name
+               if (updateMode == "New"):
+                   # Logging
+                   arcpy.AddMessage("Copying over table - " + os.path.join(geodatabase, eachTable) + "...")
+                   if (enableLogging == "true"):
+                      logger.info("Copying over table - " + os.path.join(geodatabase, eachTable) + "...")
+                      
+                   # Copy table into geodatabase using the same dataset name
                    arcpy.TableSelect_analysis(eachTable, os.path.join(geodatabase, describeDataset.name), "")
                else:
                     # If dataset exists in geodatabase, delete features and load in new data
                     if arcpy.Exists(os.path.join(geodatabase, eachTable)):
-                        arcpy.DeleteRows_management(os.path.join(geodatabase, eachTable))
+                        # Logging
+                        arcpy.AddMessage("Updating table - " + os.path.join(geodatabase, eachTable) + "...")
+                        if (enableLogging == "true"):
+                           logger.info("Updating table - " + os.path.join(geodatabase, eachTable) + "...")
+
+                        arcpy.DeleteFeatures_management(os.path.join(geodatabase, eachTable))
                         arcpy.Append_management(os.path.join(arcpy.env.workspace, eachTable), os.path.join(geodatabase, eachTable), "NO_TEST", "", "")
                     else:
                         # Log warning
-                        arcpy.AddMessage("Warning: " + os.path.join(geodatabase, eachTable) + " does not exist and won't be updated") 
-                        # Open log file to set warning
-                        with open(logFile, "a") as f:
-                            loggingFunction(logFile,"warning",os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")  
+                        arcpy.AddWarning("Warning: " + os.path.join(geodatabase, eachTable) + " does not exist. Copying over...")
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.warning(os.path.join(geodatabase, eachTable) + " does not exist. Copying over...")
+
+                        # Copy table into geodatabase using the same dataset name
+                        arcpy.TableSelect_analysis(eachTable, os.path.join(geodatabase, describeDataset.name), "")
+                   
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
@@ -124,65 +157,88 @@ def mainFunction(updateFolder,updateMode,geodatabase): # Get parameters from Arc
             # Return the output if there is any
             if output:
                 return output      
-        # Log end
-        if logInfo == "true":
-            loggingFunction(logFile,"end","")        
+        # Logging
+        if (enableLogging == "true"):
+            # Log end of process
+            logger.info("Process ended.")
+            # Remove file handler and close log file            
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
         pass
     # If arcpy error
-    except arcpy.ExecuteError:
-        # Show the message
-        arcpy.AddMessage(arcpy.GetMessages(2))        
-        # Log error
-        if logInfo == "true":  
-            loggingFunction(logFile,"error",arcpy.GetMessages(2))
+    except arcpy.ExecuteError:           
+        # Build and show the error message
+        errorMessage = arcpy.GetMessages(2)   
+        arcpy.AddError(errorMessage)           
+        # Logging
+        if (enableLogging == "true"):
+            # Log error          
+            logger.error(errorMessage)                 
+            # Remove file handler and close log file
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
+        if (sendErrorEmail == "true"):
+            # Send email
+            sendEmail(errorMessage)
     # If python error
     except Exception as e:
-        # Show the message
-        arcpy.AddMessage(e.args[0])          
-        # Log error
-        if logInfo == "true":         
-            loggingFunction(logFile,"error",e.args[0])
+        errorMessage = ""
+        # Build and show the error message
+        for i in range(len(e.args)):
+            if (i == 0):
+                errorMessage = str(e.args[i])
+            else:
+                errorMessage = errorMessage + " " + str(e.args[i])
+        arcpy.AddError(errorMessage)              
+        # Logging
+        if (enableLogging == "true"):
+            # Log error            
+            logger.error(errorMessage)               
+            # Remove file handler and close log file
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
+        if (sendErrorEmail == "true"):
+            # Send email
+            sendEmail(errorMessage)            
 # End of main function
 
-# Start of logging function
-def loggingFunction(logFile,result,info):
-    #Get the time/date
-    setDateTime = datetime.datetime.now()
-    currentDateTime = setDateTime.strftime("%d/%m/%Y - %H:%M:%S")
-    
-    # Open log file to log message and time/date
-    if result == "start":
-        with open(logFile, "a") as f:
-            f.write("---" + "\n" + "Process started at " + currentDateTime)
-    if result == "end":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Process ended at " + currentDateTime + "\n")
-            f.write("---" + "\n")
-    if result == "warning":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Warning: " + info)               
-    if result == "error":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Process ended at " + currentDateTime + "\n")
-            f.write("Error: " + info + "\n")        
-            f.write("---" + "\n")
-        # Send an email
-        if sendEmail == "true":
-            arcpy.AddMessage("Sending email...")
-            # Server and port information
-            smtpserver = smtplib.SMTP("smtp.gmail.com",587) 
-            smtpserver.ehlo()
-            smtpserver.starttls() 
-            smtpserver.ehlo
-            # Login with sender email address and password
-            smtpserver.login(emailUser, emailPassword)
-            # Email content
-            header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
-            message = header + '\n' + emailMessage + '\n' + '\n' + info
-            # Send the email and close the connection
-            smtpserver.sendmail(emailUser, emailTo, message)
-            smtpserver.close()                
-# End of logging function 
+
+# Start of set logging function
+def setLogging(logFile):
+    # Create a logger
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.setLevel(logging.DEBUG)
+    # Setup log message handler
+    logMessage = logging.FileHandler(logFile)
+    # Setup the log formatting
+    logFormat = logging.Formatter("%(asctime)s: %(levelname)s - %(message)s", "%d/%m/%Y - %H:%M:%S")
+    # Add formatter to log message handler
+    logMessage.setFormatter(logFormat)
+    # Add log message handler to logger
+    logger.addHandler(logMessage) 
+
+    return logger, logMessage               
+# End of set logging function
+
+
+# Start of send email function
+def sendEmail(message):
+    # Send an email
+    arcpy.AddMessage("Sending email...")
+    # Server and port information
+    smtpServer = smtplib.SMTP("smtp.gmail.com",587) 
+    smtpServer.ehlo()
+    smtpServer.starttls() 
+    smtpServer.ehlo
+    # Login with sender email address and password
+    smtpServer.login(emailUser, emailPassword)
+    # Email content
+    header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
+    body = header + '\n' + emailMessage + '\n' + '\n' + message
+    # Send the email and close the connection
+    smtpServer.sendmail(emailUser, emailTo, body)    
+# End of send email function
+
 
 # This test allows the script to be used from the operating
 # system command prompt (stand-alone), in a Python IDE, 
