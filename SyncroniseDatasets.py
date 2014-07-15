@@ -3,7 +3,7 @@
 # Purpose:    Runs the syncronise changes gp tool to update dataset changes from one geodatabase to another.      
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    12/06/2014
-# Last Updated:    23/06/2014
+# Last Updated:    15/07/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
@@ -66,7 +66,12 @@ def mainFunction(sourceGeodatabase,replicatedGeodatabase,replicaName,featureClas
                     logger.info("Copying Over Table " + table + "...")                                
                 arcpy.AddMessage("Copying Over Table " + table + "...")               
                 tableName = arcpy.Describe(table)
-                arcpy.CopyRows_management(table, os.path.join(replicatedGeodatabase, tableName.name), "")
+
+                # Change dataset name to be just name (remove user and schema if SDE database)
+                splitDataset = tableName.name.split('.')
+                dataset = splitDataset[-1]
+                
+                arcpy.CopyRows_management(table, os.path.join(replicatedGeodatabase, dataset), "")
                 
         if (len(featureClasses) > 0):        
             # Remove out apostrophes
@@ -78,7 +83,12 @@ def mainFunction(sourceGeodatabase,replicatedGeodatabase,replicaName,featureClas
                     logger.info("Copying Over Feature Class " + featureClass + "...")                                
                 arcpy.AddMessage("Copying Over Feature Class " + featureClass + "...")            
                 featureClassName = arcpy.Describe(featureClass)
-                arcpy.CopyFeatures_management(featureClass, os.path.join(replicatedGeodatabase, featureClassName.name), "", "0", "0", "0")
+
+                # Change dataset name to be just name (remove user and schema if SDE database)
+                splitDataset = featureClassName.name.split('.')
+                dataset = splitDataset[-1]
+
+                arcpy.CopyFeatures_management(featureClass, os.path.join(replicatedGeodatabase, dataset), "", "0", "0", "0")
 
         # --------------------------------------- End of code --------------------------------------- #  
             
