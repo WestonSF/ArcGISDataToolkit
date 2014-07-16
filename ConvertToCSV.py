@@ -4,7 +4,7 @@
 #             records also.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    16/01/2014
-# Last Updated:    03/05/2014
+# Last Updated:    16/07/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1/10.2
 # Python Version:   2.7
@@ -33,7 +33,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFooterCSVDelimiter,outputFolder): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(featureClasses,tables,dataCSVDelimiter,columnTitles,headerFooter,headerFooterCSVDelimiter,outputFolder): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -45,7 +45,9 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
         # --------------------------------------- Start of code --------------------------------------- #
         # Check input datasets are provided
         if ((len(featureClasses) > 0) or (len(tables) > 0)):
-            arcpy.AddMessage("Creating CSV(s)...")        
+            # Get the current date
+            currentDate = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            
             # Load the feature classes and tables into a list if input values provided
             if (len(featureClasses) > 0):       
                 # Remove out apostrophes
@@ -57,7 +59,12 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                     describeDataset = arcpy.Describe(featureClass)
                 
                     # Create a CSV file and write values from feature class
-                    with open(os.path.join(outputFolder, describeDataset.name + ".csv"), 'wb') as file:
+                    with open(os.path.join(outputFolder, describeDataset.name + "_" + currentDate + ".csv"), 'wb') as file:
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.info("Creating CSV - " + os.path.join(outputFolder, describeDataset.name + ".csv") + "...")                                
+                        arcpy.AddMessage("Creating CSV - " + os.path.join(outputFolder, describeDataset.name + ".csv") + "...")
+                                
                         # Add in header information if required
                         if headerFooter == "true":
                             # Set header delimiter
@@ -70,7 +77,7 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                             # Add in header information   
                             headerRow = []                               
                             headerRow.append("H")
-                            headerRow.append(describeDataset.name + ".csv" + "_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".gz")                                
+                            headerRow.append(describeDataset.name + "_" + currentDate + ".csv")                                
                             writer.writerow(headerRow)
 
                         # Set data delimiter
@@ -82,10 +89,11 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                             writer = csv.writer(file, delimiter=",")
                             
                         fieldNames = []
-                        # Open up feature class and get the header values then write to first line
-                        for record in arcpy.ListFields(featureClass):
-                            fieldNames.append(record.name)
-                        writer.writerow(fieldNames)
+                        # Open up feature class and get the header values then write to first line if required
+                        if (columnTitles.lower() == "true"):
+                            for record in arcpy.ListFields(featureClass):
+                                fieldNames.append(record.name)
+                            writer.writerow(fieldNames)
                         # Write in each of the values for all of the records
                         with arcpy.da.SearchCursor(featureClass, "*") as cursor:
                             # For each row in the table
@@ -95,6 +103,9 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                                 for value in row:
                                     # Encode any ascii characters
                                     value = unicode(value).encode('utf-8')
+                                    # Convert null values to blanks
+                                    if value.lower() == "none":
+                                        value = ""                                    
                                     # Append to list
                                     values.append(value)                             
                                 # Write the row to the CSV file
@@ -113,7 +124,7 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                             # Add in footer information
                             footerRow = []                             
                             footerRow.append("F")
-                            footerRow.append(describeDataset.name + ".csv" + "_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".gz")
+                            footerRow.append(describeDataset.name + "_" + currentDate + ".csv")
                             rowCount = arcpy.GetCount_management(featureClass)
                             footerRow.append(rowCount)
                             writer.writerow(footerRow)
@@ -128,7 +139,12 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                     describeDataset = arcpy.Describe(table)
                
                     # Create a CSV file and write values from table
-                    with open(os.path.join(outputFolder, describeDataset.name + ".csv"), 'wb') as file:              
+                    with open(os.path.join(outputFolder, describeDataset.name + "_" + currentDate + ".csv"), 'wb') as file:
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.info("Creating CSV - " + os.path.join(outputFolder, describeDataset.name + ".csv") + "...")                                
+                        arcpy.AddMessage("Creating CSV - " + os.path.join(outputFolder, describeDataset.name + ".csv") + "...")
+                        
                         # Add in header information if required
                         if headerFooter == "true":
                             # Set header delimiter
@@ -141,7 +157,7 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                             # Add in header information   
                             headerRow = []                               
                             headerRow.append("H")
-                            headerRow.append(describeDataset.name + ".csv" + "_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".gz")                                
+                            headerRow.append(describeDataset.name + "_" + currentDate + ".csv")                                
                             writer.writerow(headerRow)
 
                         # Set data delimiter
@@ -153,10 +169,11 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                             writer = csv.writer(file, delimiter=",")
                             
                         fieldNames = []
-                        # Open up table and get the header values then write to first line
-                        for record in arcpy.ListFields(table):
-                            fieldNames.append(record.name)
-                        writer.writerow(fieldNames)
+                        # Open up table and get the header values then write to first line if required
+                        if (columnTitles.lower() == "true"):
+                            for record in arcpy.ListFields(table):
+                                fieldNames.append(record.name)
+                            writer.writerow(fieldNames)
                         # Write in each of the values for all of the records
                         with arcpy.da.SearchCursor(table, "*") as cursor:
                             # For each row in the table
@@ -166,6 +183,9 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                                 for value in row:
                                     # Encode any ascii characters
                                     value = unicode(value).encode('utf-8')
+                                    # Convert null values to blanks
+                                    if value.lower() == "none":
+                                        value = ""
                                     # Append to list
                                     values.append(value)                             
                                 # Write the row to the CSV file
@@ -184,7 +204,7 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,headerFooter,headerFoote
                             # Add in footer information
                             footerRow = []                             
                             footerRow.append("F")
-                            footerRow.append(describeDataset.name + ".csv" + "_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".gz")
+                            footerRow.append(describeDataset.name + "_" + currentDate + ".csv")
                             rowCount = arcpy.GetCount_management(table)
                             footerRow.append(rowCount)
                             writer.writerow(footerRow)                            
