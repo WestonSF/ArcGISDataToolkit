@@ -105,7 +105,15 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,columnTitles,headerFoote
                                     value = unicode(value).encode('utf-8')
                                     # Convert null values to blanks
                                     if value.lower() == "none":
-                                        value = ""                                    
+                                        value = ""
+
+                                    try:
+                                        # Get the value if it is a date
+                                        date = datetime.datetime.strptime(value, '%Y-%m-%d')
+                                        arcpy.AddMessage(datetime.date.strftime(date, '%Y-%m-%d %H:%M:%S'))
+                                    except ValueError:
+                                        date = ""
+                                    
                                     # Append to list
                                     values.append(value)                             
                                 # Write the row to the CSV file
@@ -186,6 +194,14 @@ def mainFunction(featureClasses,tables,dataCSVDelimiter,columnTitles,headerFoote
                                     # Convert null values to blanks
                                     if value.lower() == "none":
                                         value = ""
+
+                                    try:
+                                        # Get the value if it is a date
+                                        date = datetime.datetime.strptime(value, '%Y-%m-%d')
+                                        arcpy.AddMessage(datetime.date.strftime(date, '%Y-%m-%d %H:%M:%S'))
+                                    except ValueError:
+                                        date = ""
+                                    
                                     # Append to list
                                     values.append(value)                             
                                 # Write the row to the CSV file
