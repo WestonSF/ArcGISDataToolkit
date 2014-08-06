@@ -1,11 +1,12 @@
 #-------------------------------------------------------------
-# Name:       #
-# Purpose:    #         
+# Name:       Restore Geodatabase History
+# Purpose:    Re-attachs an orphaned history dataset to its base dataset, by re-enabling arhiving and
+#             loading in the orphaned archived dataset records.         
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
-# Date Created:    01/01/2014
-# Last Updated:    01/01/2014
+# Date Created:    06/08/2014
+# Last Updated:    06/08/2014
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.1+
+# ArcGIS Version:   10.2+
 # Python Version:   2.7
 #--------------------------------
 

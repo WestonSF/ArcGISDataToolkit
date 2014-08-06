@@ -125,7 +125,10 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
     if (enableLogging == "true"):
         # Setup logging
         logger, logMessage = setLogging(logFile)
-       
+
+    # Get the arcgis version
+    arcgisVersion = arcpy.GetInstallInfo()['Version']
+                                
     # Loop through the datasets
     for dataset in datasetList:   
         # If feature datasets
@@ -246,13 +249,19 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 # Copy over table                                
                                 arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")
 
-                                 # Check if dataset is archived
-                                datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived
+                                # Set the archive dataset paths
+                                sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
+                                destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
+                                    
+                                # If 10.0 or 10.1 the archive function is not present
+                                if ((arcgisVersion == "10.0") or (arcgisVersion == "10.1")):
+                                    # Check if dataset is archived
+                                    datasetArchived =  arcpy.Exists(sourceArchiveDatasetPath)                                                                     
+                                else:           
+                                    # Check if dataset is archived
+                                    datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived    
+                                    
                                 if (datasetArchived == 1):
-                                    # Set the archive dataset paths
-                                    sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
-                                    destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
-                                        
                                     # Logging
                                     if (enableLogging == "true"):
                                         logger.info("Copying over archive table - " + destinationArchiveDatasetPath + "...")                                   
@@ -269,13 +278,19 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 # Copy over feature class
                                 arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
 
-                                 # Check if dataset is archived
-                                datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived
+                                # Set the archive dataset paths
+                                sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
+                                destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
+                                    
+                                # If 10.0 or 10.1 the archive function is not present
+                                if ((arcgisVersion == "10.0") or (arcgisVersion == "10.1")):
+                                    # Check if dataset is archived
+                                    datasetArchived =  arcpy.Exists(sourceArchiveDatasetPath)                                                                     
+                                else:           
+                                    # Check if dataset is archived
+                                    datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived    
+                                     
                                 if (datasetArchived == 1):
-                                    # Set the archive dataset paths
-                                    sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
-                                    destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
-                                        
                                     # Logging
                                     if (enableLogging == "true"):
                                         logger.info("Copying over archive feature class - " + destinationArchiveDatasetPath + "...")                                   
@@ -363,13 +378,19 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 # Copy over table                                
                                 arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")
 
-                                 # Check if dataset is archived
-                                datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived
+                                # Set the archive dataset paths
+                                sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
+                                destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
+                                    
+                                # If 10.0 or 10.1 the archive function is not present
+                                if ((arcgisVersion == "10.0") or (arcgisVersion == "10.1")):
+                                    # Check if dataset is archived
+                                    datasetArchived =  arcpy.Exists(sourceArchiveDatasetPath)                                                                     
+                                else:           
+                                    # Check if dataset is archived
+                                    datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived    
+                                    
                                 if (datasetArchived == 1):
-                                    # Set the archive dataset paths
-                                    sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
-                                    destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
-                                        
                                     # Logging
                                     if (enableLogging == "true"):
                                         logger.info("Copying over archive table - " + destinationArchiveDatasetPath + "...")                                   
@@ -386,13 +407,19 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 # Copy over feature class                                
                                 arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
 
-                                 # Check if dataset is archived
-                                datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived
-                                if (datasetArchived == 1):
-                                    # Set the archive dataset paths
-                                    sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
-                                    destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
-                                        
+                                # Set the archive dataset paths
+                                sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
+                                destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
+                                    
+                                # If 10.0 or 10.1 the archive function is not present
+                                if ((arcgisVersion == "10.0") or (arcgisVersion == "10.1")):
+                                    # Check if dataset is archived
+                                    datasetArchived =  arcpy.Exists(sourceArchiveDatasetPath)                                                                     
+                                else:           
+                                    # Check if dataset is archived
+                                    datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived    
+                                    
+                                if (datasetArchived == 1): 
                                     # Logging
                                     if (enableLogging == "true"):
                                         logger.info("Copying over archive feature class - " + destinationArchiveDatasetPath + "...")                                   
