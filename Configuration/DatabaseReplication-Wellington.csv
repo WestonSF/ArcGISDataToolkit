@@ -1,5 +1,2 @@
 source,destination,version
-ResourceConsents,ResourceConsents,no
-Ridgetops,SDE_LandBase\River,yes
-test\Rates,RatesTEST,yes
-test2,testTable,yes
+database_replication_test,TestNewLayers\database_replication_test,no

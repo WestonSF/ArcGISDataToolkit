@@ -2,12 +2,12 @@
 # Name:       Database Replication
 # Purpose:    Copies data from one geodatabase to another using a CSV file to map dataset names. Two update options:
 #             Existing Mode - Will delete and append records, so field names need to be the same.
-#             New Mode - Copies data over. Requires no locks on geodatabase datasets being overwritten.       
+#             New Mode - Copies data over (including archive datasets if needed). Requires no locks on geodatabase datasets being overwritten.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    10/04/2014
-# Last Updated:    04/06/2014
+# Last Updated:    06/08/2014
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.1/10.2
+# ArcGIS Version:   10.1+
 # Python Version:   2.7
 #--------------------------------
 
@@ -169,10 +169,10 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                 
             # Feature classes and tables
             else:
-                # Setup the source and destination paths - Source needs to have full nhame including schema and user                  
+                # Setup the source and destination paths - Source needs to have full name including schema and user                  
                 sourceDatasetPath = os.path.join(sourceGeodatabase, dataset2)             
                 destinationDatasetPath = os.path.join(destinationGeodatabase, newDataset2)
-
+                            
             # If configuration provided
             if (configFile):
                 # Set CSV delimiter                         
@@ -244,7 +244,22 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                     logger.info("Copying over table - " + destinationDatasetPath + "...")                                
                                 arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")
                                 # Copy over table                                
-                                arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")                       
+                                arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")
+
+                                 # Check if dataset is archived
+                                datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived
+                                if (datasetArchived == 1):
+                                    # Set the archive dataset paths
+                                    sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
+                                    destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
+                                        
+                                    # Logging
+                                    if (enableLogging == "true"):
+                                        logger.info("Copying over archive table - " + destinationArchiveDatasetPath + "...")                                   
+                                    arcpy.AddMessage("Copying over archive table - " + destinationArchiveDatasetPath + "...")                                    
+                                    # Copy over archive dataset (_H) too
+                                    arcpy.CopyRows_management(sourceArchiveDatasetPath, destinationArchiveDatasetPath, "")
+                   
                             # Feature classes
                             else:
                                 # Logging
@@ -253,6 +268,21 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")
                                 # Copy over feature class
                                 arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
+
+                                 # Check if dataset is archived
+                                datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived
+                                if (datasetArchived == 1):
+                                    # Set the archive dataset paths
+                                    sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
+                                    destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
+                                        
+                                    # Logging
+                                    if (enableLogging == "true"):
+                                        logger.info("Copying over archive feature class - " + destinationArchiveDatasetPath + "...")                                   
+                                    arcpy.AddMessage("Copying over archive feature class - " + destinationArchiveDatasetPath + "...")                                    
+                                    # Copy over archive dataset (_H) too
+                                    arcpy.CopyFeatures_management(sourceArchiveDatasetPath, destinationArchiveDatasetPath, "", "0", "0", "0")
+                
                         # Else refreshing existing dataset - updateMode is Existing
                         else:
                             # If table
@@ -331,7 +361,22 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                     logger.info("Copying over table - " + destinationDatasetPath + "...")                                 
                                 arcpy.AddMessage("Copying over table - " + destinationDatasetPath + "...")
                                 # Copy over table                                
-                                arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")                       
+                                arcpy.CopyRows_management(sourceDatasetPath, destinationDatasetPath, "")
+
+                                 # Check if dataset is archived
+                                datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived
+                                if (datasetArchived == 1):
+                                    # Set the archive dataset paths
+                                    sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
+                                    destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
+                                        
+                                    # Logging
+                                    if (enableLogging == "true"):
+                                        logger.info("Copying over archive table - " + destinationArchiveDatasetPath + "...")                                   
+                                    arcpy.AddMessage("Copying over archive table - " + destinationArchiveDatasetPath + "...")                                    
+                                    # Copy over archive dataset (_H) too
+                                    arcpy.CopyRows_management(sourceArchiveDatasetPath, destinationArchiveDatasetPath, "")
+                                    
                             # Feature classes
                             else:
                                 # Logging
@@ -340,6 +385,21 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 arcpy.AddMessage("Copying over feature class - " + destinationDatasetPath + "...")
                                 # Copy over feature class                                
                                 arcpy.CopyFeatures_management(sourceDatasetPath, destinationDatasetPath, "", "0", "0", "0")
+
+                                 # Check if dataset is archived
+                                datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived
+                                if (datasetArchived == 1):
+                                    # Set the archive dataset paths
+                                    sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
+                                    destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
+                                        
+                                    # Logging
+                                    if (enableLogging == "true"):
+                                        logger.info("Copying over archive feature class - " + destinationArchiveDatasetPath + "...")                                   
+                                    arcpy.AddMessage("Copying over archive feature class - " + destinationArchiveDatasetPath + "...")                                    
+                                    # Copy over archive dataset (_H) too
+                                    arcpy.CopyFeatures_management(sourceArchiveDatasetPath, destinationArchiveDatasetPath, "", "0", "0", "0")
+                                
                         # Else refreshing existing dataset - updateMode is Existing
                         else:
                             # If table

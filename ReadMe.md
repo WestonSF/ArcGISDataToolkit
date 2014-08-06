@@ -52,7 +52,7 @@ Copies data from one geodatabase to another using a CSV file to map dataset name
         
 * Existing Mode - Will delete and append records, so field names need to be the same.
              
-* New Mode - Copies data over. Requires no locks on geodatabase datasets being overwritten.  
+* New Mode - Copies data over (including archive datasets if needed). Requires no locks on geodatabase datasets being overwritten.  
 
 #### Database Contents To CSV
 Exports out the names of datasets in a geodatabase to a CSV file.
@@ -77,6 +77,9 @@ Updates permissions for datasets specified in a CSV file. This will go through C
 
 #### Export Metadata
 Exports all metadata in a geodatabase out to a text file.
+
+#### Restore Geodatabase History (IN DEVELPOMENT)
+Re-attachs an orphaned history dataset to its base dataset, by re-enabling arhiving and loading in the orphaned archived dataset records.  
 
 #### LINZ Data Service Download (IN DEVELPOMENT)
 Downloads the data  from the LINZ data service by either downloading the entire dataset for WFS or downloading the changeset and updating the data.
