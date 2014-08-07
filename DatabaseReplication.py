@@ -5,7 +5,7 @@
 #             New Mode - Copies data over (including archive datasets if needed). Requires no locks on geodatabase datasets being overwritten.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    10/04/2014
-# Last Updated:    06/08/2014
+# Last Updated:    07/08/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1+
 # Python Version:   2.7
@@ -125,9 +125,6 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
     if (enableLogging == "true"):
         # Setup logging
         logger, logMessage = setLogging(logFile)
-
-    # Get the arcgis version
-    arcgisVersion = arcpy.GetInstallInfo()['Version']
                                 
     # Loop through the datasets
     for dataset in datasetList:   
@@ -253,14 +250,9 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
                                 destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
                                     
-                                # If 10.0 or 10.1 the archive function is not present
-                                if ((arcgisVersion == "10.0") or (arcgisVersion == "10.1")):
-                                    # Check if dataset is archived
-                                    datasetArchived =  arcpy.Exists(sourceArchiveDatasetPath)                                                                     
-                                else:           
-                                    # Check if dataset is archived
-                                    datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived    
-                                    
+                                # Check if dataset is archived
+                                datasetArchived =  arcpy.Exists(sourceArchiveDatasetPath)
+                                
                                 if (datasetArchived == 1):
                                     # Logging
                                     if (enableLogging == "true"):
@@ -282,13 +274,8 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
                                 destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
                                     
-                                # If 10.0 or 10.1 the archive function is not present
-                                if ((arcgisVersion == "10.0") or (arcgisVersion == "10.1")):
-                                    # Check if dataset is archived
-                                    datasetArchived =  arcpy.Exists(sourceArchiveDatasetPath)                                                                     
-                                else:           
-                                    # Check if dataset is archived
-                                    datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived    
+                                # Check if dataset is archived
+                                datasetArchived =  arcpy.Exists(sourceArchiveDatasetPath)   
                                      
                                 if (datasetArchived == 1):
                                     # Logging
@@ -382,13 +369,8 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
                                 destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
                                     
-                                # If 10.0 or 10.1 the archive function is not present
-                                if ((arcgisVersion == "10.0") or (arcgisVersion == "10.1")):
-                                    # Check if dataset is archived
-                                    datasetArchived =  arcpy.Exists(sourceArchiveDatasetPath)                                                                     
-                                else:           
-                                    # Check if dataset is archived
-                                    datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived    
+                                # Check if dataset is archived
+                                datasetArchived =  arcpy.Exists(sourceArchiveDatasetPath)  
                                     
                                 if (datasetArchived == 1):
                                     # Logging
@@ -411,13 +393,8 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                                 sourceArchiveDatasetPath = os.path.join(sourceGeodatabase, newDataset2 + "_H")
                                 destinationArchiveDatasetPath = os.path.join(destinationGeodatabase, newDataset2 + "_H")
                                     
-                                # If 10.0 or 10.1 the archive function is not present
-                                if ((arcgisVersion == "10.0") or (arcgisVersion == "10.1")):
-                                    # Check if dataset is archived
-                                    datasetArchived =  arcpy.Exists(sourceArchiveDatasetPath)                                                                     
-                                else:           
-                                    # Check if dataset is archived
-                                    datasetArchived = arcpy.Describe(sourceDatasetPath).IsArchived    
+                                # Check if dataset is archived
+                                datasetArchived =  arcpy.Exists(sourceArchiveDatasetPath)  
                                     
                                 if (datasetArchived == 1): 
                                     # Logging
