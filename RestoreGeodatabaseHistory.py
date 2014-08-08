@@ -1,10 +1,10 @@
 #-------------------------------------------------------------
 # Name:       Restore Geodatabase History
-# Purpose:    Re-attachs an orphaned history dataset to its base dataset, by re-enabling arhiving and
-#             loading in the orphaned archived dataset records.         
+# Purpose:    Re-attachs an orphaned history dataset to its base dataset, by re-enabling archiving and
+#             loading in the orphaned archived dataset records in a SQL Server database.      
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    06/08/2014
-# Last Updated:    06/08/2014
+# Last Updated:    08/08/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.2+
 # Python Version:   2.7
@@ -32,7 +32,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(*argv): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(geodatabase): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -43,9 +43,106 @@ def mainFunction(*argv): # Get parameters from ArcGIS Desktop tool by seperating
             
         # --------------------------------------- Start of code --------------------------------------- #
         
-
-        # --------------------------------------- End of code --------------------------------------- #  
+        # Get a list of the feature datasets in the database
+        arcpy.env.workspace = geodatabase
+        featureDatasetList = arcpy.ListDatasets("", "Feature")
+        # Loop through the datasets
+        datasetList = []
+        for dataset in featureDatasetList:   
+            datasetList = datasetList + arcpy.ListFeatureClasses("","",dataset)
             
+        # Get a list of the feature classes in the database
+        featureClassList = arcpy.ListFeatureClasses()
+
+         # Get a list of the tables in the database
+        tableList = arcpy.ListTables()
+
+        # Get the full list of datasets in the database
+        fullDatasetList = featureClassList + tableList
+
+        # Connect directly to SQL server
+        sqlConnection = arcpy.ArcSDESQLExecute(geodatabase)
+
+        # Compress the database        
+        arcpy.Compress_management(geodatabase)
+        
+        # Loop through the list of datasets
+        for dataset in fullDatasetList:
+            # If dataset is an orphaned dataset - "_H" suffix
+            if (dataset[-2:].upper() == "_H"):
+                # Logging
+                if (enableLogging == "true"):
+                    logger.info("Orphaned archive dataset found - " + dataset + "...")
+                arcpy.AddMessage("Orphaned archive dataset found - " + dataset + "...")
+
+                baseDataset = dataset[:-2]
+
+                # If the base dataset exists for the orphaned archive
+                if arcpy.Exists(baseDataset):
+                    # Create a copy of the base dataset
+                    arcpy.CopyFeatures_management(baseDataset, baseDataset + "_Current")
+                    
+                    # Delete all records in the base dataset                    
+                    arcpy.DeleteFeatures_management(baseDataset)
+                    
+                    # If archive rename already exists
+                    if arcpy.Exists(baseDataset + "_Archive"):
+                        # Delete the archive rename
+                        arcpy.Delete_management(baseDataset + "_Archive")
+    
+                    # Rename the archive dataset
+                    arcpy.Rename_management(dataset, baseDataset + "_Archive", "Feature Class")
+
+                    # Load all records from archive dataset into the base dataset
+                    arcpy.Append_management(baseDataset + "_Archive", baseDataset, "NO_TEST","","")
+                    
+                    # Describe the properties of the dataset to see if archiving is enabled
+                    desc = arcpy.Describe(baseDataset)
+                    isArchived = desc.IsArchived
+
+                    # Enable Archiving if it is not already enabled
+                    if isArchived == False:
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.info("Enabling archiving - " + baseDataset + "...")
+                        arcpy.AddMessage("Enabling archiving - " + baseDataset + "...")
+                        
+                        # Enable archiving
+                        arcpy.EnableArchiving_management(baseDataset)
+
+                        # Delete all records in the base dataset                    
+                        arcpy.DeleteFeatures_management(baseDataset)
+
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.info("Loading in orphaned archive dataset records - " + dataset + "...")
+                        arcpy.AddMessage("Loading in orphaned archive dataset records - " + dataset + "...")
+                    
+                        # Update the dates in the new archive dataset from the old archive dataset
+                        sqlQuery = "UPDATE " + baseDataset + " SET " + dataset ".GDB_FROM_DATE = " + dataset + ".GDB_FROM_DATE, " + baseDataset + "_Archive" + ".GDB_TO_DATE = " + dataset + ".GDB_TO_DATE FROM " + baseDataset + "_Archive" + " INNER JOIN " + dataset + " ON " + dataset + ".GDB_ARCHIVE_OID = " + baseDataset + "_Archive" + ".OBJECTID"
+                        sqlResult = sqlConnection.execute(sqlQuery)
+
+                        # Update the current dates in the new archive dataset to a year of "8888"
+                        sqlQuery = "UPDATE " + baseDataset + " SET GDB_TO_DATE = convert(datetime, '8888-12-31 00:00:00',20) WHERE GDB_TO_DATE = convert(datetime, '9999-12-31 00:00:00',20)"
+                        sqlResult = sqlConnection.execute(sqlQuery)
+
+                        # Load all records from current base dataset into the base dataset
+                        arcpy.Append_management(baseDataset + "_Current", baseDataset, "NO_TEST","","")
+                    
+                       
+                        
+                    elif isArchived == False:
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.warning("Archiving is already enabled - " + baseDataset + "...")
+                        arcpy.AddWarning("Archiving is already enabled - " + baseDataset + "...")                 
+        # --------------------------------------- End of code --------------------------------------- #  
+                else:
+                    # Logging
+                    if (enableLogging == "true"):
+                        logger.warning("No base dataset found - " + baseDataset + "...")
+                    arcpy.AddWarning("No base dataset found - " + baseDataset + "...")
+                    
         # If called from gp tool return the arcpy parameter   
         if __name__ == '__main__':
             # Return the output if there is any
@@ -85,9 +182,9 @@ def mainFunction(*argv): # Get parameters from ArcGIS Desktop tool by seperating
         # Build and show the error message
         for i in range(len(e.args)):
             if (i == 0):
-                errorMessage = str(e.args[i])
+                errorMessage = unicode(e.args[i]).encode('utf-8')
             else:
-                errorMessage = errorMessage + " " + str(e.args[i])
+                errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
         arcpy.AddError(errorMessage)              
         # Logging
         if (enableLogging == "true"):
