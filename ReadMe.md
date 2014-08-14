@@ -81,7 +81,7 @@ Exports all metadata in a geodatabase out to a text file.
 #### Restore Geodatabase History
 Re-attachs an orphaned history dataset to its base dataset, by re-enabling archiving and loading in the orphaned archived dataset records in a SQL Server database.  
 
-#### LINZ Data Service Download (IN DEVELPOMENT)
+#### LINZ Data Service Download
 Downloads the data  from the LINZ data service by either downloading the entire dataset for WFS or downloading the changeset and updating the data.
 
 #### LINZ Mortgage Data Import (IN DEVELPOMENT)
