@@ -4,9 +4,9 @@
 #             the changeset and updating the data.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    09/05/2014
-# Last Updated:    11/05/2014
+# Last Updated:    14/08/2014
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.1/10.2
+# ArcGIS Version:   10.1+
 # Python Version:   2.7
 #--------------------------------
 
@@ -16,6 +16,8 @@ import sys
 import logging
 import smtplib
 import arcpy
+import datetime
+import xml.etree.ElementTree as ET
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -32,7 +34,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(key,layerID,downloadType,lastUpdateConfig,dataset): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(key,ldsLayerID,ldsJoinField,downloadType,lastUpdateConfig,dataset,datasetJoinField): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -45,29 +47,98 @@ def mainFunction(key,layerID,downloadType,lastUpdateConfig,dataset): # Get param
    
         # If downloading all data
         if (downloadType == "All"):
-
             # Setup URL
-            wfsURL = "http://wfs.data.linz.govt.nz/" + key + "/v/x" + str(layerID)
+            wfsURL = "https://data.linz.govt.nz/services;key=" + key + "/wfs/" + str(ldsLayerID)
 
+            # Logging
+            if (enableLogging == "true"):
+                logger.info("Downloading data with ID - " + str(ldsLayerID) + "...")
+            arcpy.AddMessage("Downloading data with ID - " + str(ldsLayerID) + "...")
+                
             # Download data via WFS feed       
-            arcpy.QuickImport_interop("WFS," + wfsURL + "/wfs?version=1.0.0&SRSName=EPSG:2193,\"RUNTIME_MACROS,\"\"PREFER_POST,No,PREFERRED_VERSION,1.0.0,USE_HTTP_AUTH,NO,HTTP_AUTH_USER,,HTTP_AUTH_PASSWORD,,HTTP_AUTH_METHOD,Basic,USE_PROXY_SERVER,NO,HTTP_PROXY,null,HTTP_PROXY_PORT,null,HTTP_PROXY_USER,,HTTP_PROXY_PASSWORD,,HTTP_PROXY_AUTH_METHOD,Basic,TABLELIST,\"\"\"\"\"\"\"\"\"\"\"\"x" + str(layerID) + "\"\"\"\"\"\"\"\"\"\"\"\",MAX_RESULT_FEATURES,,OUTPUT_FORMAT,,FILTER_EXPRESSION,,XSD_DOC,,FME_FEATURE_IDENTIFIER,,SRS_AXIS_ORDER,,MAP_EMBEDDED_OBJECTS_AS,ATTRIBUTES,MAP_PREDEFINED_GML_PROPERTIES,NO,MAP_GEOMETRY_COLUMNS,YES,MAP_COMPLEX_PROPERTIES_AS,\"\"\"\"Nested Attributes\"\"\"\",MAX_MULTI_LIST_LEVEL,,XML_FRAGMENTS_AS_DOCUMENTS,YES,FLATTEN_XML_FRAGMENTS,NO,FLATTEN_XML_FRAGMENTS_OPEN_LIST_BRACE,,FLATTEN_XML_FRAGMENTS_CLOSE_LIST_BRACE,,FLATTEN_XML_FRAGMENTS_SEPARATOR,,GML_READER_GROUP,,USE_OLD_READER,NO,DISABLE_XML_NAMESPACE_PROCESSING,NO,ARCGIS_CACHE_GROUP,,LOCAL_CACHE_EXPIRY,60,EXPOSE_ATTRS_GROUP,,WFS_EXPOSE_FORMAT_ATTRS,,USE_SEARCH_ENVELOPE,NO,SEARCH_ENVELOPE_MINX,0,SEARCH_ENVELOPE_MINY,0,SEARCH_ENVELOPE_MAXX,0,SEARCH_ENVELOPE_MAXY,0,CLIP_TO_ENVELOPE,NO,BBOX_COORDINATE_SYSTEM,<Unused>,_MERGE_SCHEMAS,YES\"\",META_MACROS,\"\"SourcePREFER_POST,No,SourcePREFERRED_VERSION,1.0.0,SourceUSE_HTTP_AUTH,NO,SourceHTTP_AUTH_USER,,SourceHTTP_AUTH_PASSWORD,,SourceHTTP_AUTH_METHOD,Basic,SourceUSE_PROXY_SERVER,NO,SourceHTTP_PROXY,null,SourceHTTP_PROXY_PORT,null,SourceHTTP_PROXY_USER,,SourceHTTP_PROXY_PASSWORD,,SourceHTTP_PROXY_AUTH_METHOD,Basic,SourceMAX_RESULT_FEATURES,,SourceOUTPUT_FORMAT,,SourceFILTER_EXPRESSION,,SourceXSD_DOC,,SourceFME_FEATURE_IDENTIFIER,,SourceSRS_AXIS_ORDER,,SourceMAP_EMBEDDED_OBJECTS_AS,ATTRIBUTES,SourceMAP_PREDEFINED_GML_PROPERTIES,NO,SourceMAP_GEOMETRY_COLUMNS,YES,SourceMAP_COMPLEX_PROPERTIES_AS,\"\"\"\"Nested Attributes\"\"\"\",SourceMAX_MULTI_LIST_LEVEL,,SourceXML_FRAGMENTS_AS_DOCUMENTS,YES,SourceFLATTEN_XML_FRAGMENTS,NO,SourceFLATTEN_XML_FRAGMENTS_OPEN_LIST_BRACE,,SourceFLATTEN_XML_FRAGMENTS_CLOSE_LIST_BRACE,,SourceFLATTEN_XML_FRAGMENTS_SEPARATOR,,SourceGML_READER_GROUP,,SourceUSE_OLD_READER,NO,SourceDISABLE_XML_NAMESPACE_PROCESSING,NO,SourceARCGIS_CACHE_GROUP,,SourceLOCAL_CACHE_EXPIRY,60,SourceEXPOSE_ATTRS_GROUP,,SourceWFS_EXPOSE_FORMAT_ATTRS,,SourceUSE_SEARCH_ENVELOPE,NO,SourceSEARCH_ENVELOPE_MINX,0,SourceSEARCH_ENVELOPE_MINY,0,SourceSEARCH_ENVELOPE_MAXX,0,SourceSEARCH_ENVELOPE_MAXY,0,SourceCLIP_TO_ENVELOPE,NO,SourceBBOX_COORDINATE_SYSTEM,<Unused>\"\",METAFILE,WFS,COORDSYS,,IDLIST,\"\"\"\"\"\"x" + str(layerID) + "\"\"\"\"\"\",__FME_DATASET_IS_SOURCE__,true\"", os.path.join(arcpy.env.scratchFolder, "layer_" + str(layerID) + ".gdb"))
+            arcpy.QuickImport_interop("WFS," + wfsURL + "?version=1.0.0&SRSName=EPSG:2193,\"RUNTIME_MACROS,\"\"PREFER_POST,No,PREFERRED_VERSION,1.0.0,USE_HTTP_AUTH,NO,HTTP_AUTH_USER,,HTTP_AUTH_PASSWORD,,HTTP_AUTH_METHOD,Basic,USE_PROXY_SERVER,NO,HTTP_PROXY,null,HTTP_PROXY_PORT,null,HTTP_PROXY_USER,,HTTP_PROXY_PASSWORD,,HTTP_PROXY_AUTH_METHOD,Basic,TABLELIST,\"\"\"\"\"\"\"\"\"\"\"\"x" + str(ldsLayerID) + "\"\"\"\"\"\"\"\"\"\"\"\",MAX_RESULT_FEATURES,,OUTPUT_FORMAT,,FILTER_EXPRESSION,,XSD_DOC,,FME_FEATURE_IDENTIFIER,,SRS_AXIS_ORDER,,MAP_EMBEDDED_OBJECTS_AS,ATTRIBUTES,MAP_PREDEFINED_GML_PROPERTIES,NO,MAP_GEOMETRY_COLUMNS,YES,MAP_COMPLEX_PROPERTIES_AS,\"\"\"\"Nested Attributes\"\"\"\",MAX_MULTI_LIST_LEVEL,,XML_FRAGMENTS_AS_DOCUMENTS,YES,FLATTEN_XML_FRAGMENTS,NO,FLATTEN_XML_FRAGMENTS_OPEN_LIST_BRACE,,FLATTEN_XML_FRAGMENTS_CLOSE_LIST_BRACE,,FLATTEN_XML_FRAGMENTS_SEPARATOR,,GML_READER_GROUP,,USE_OLD_READER,NO,DISABLE_XML_NAMESPACE_PROCESSING,NO,ARCGIS_CACHE_GROUP,,LOCAL_CACHE_EXPIRY,60,EXPOSE_ATTRS_GROUP,,WFS_EXPOSE_FORMAT_ATTRS,,USE_SEARCH_ENVELOPE,NO,SEARCH_ENVELOPE_MINX,0,SEARCH_ENVELOPE_MINY,0,SEARCH_ENVELOPE_MAXX,0,SEARCH_ENVELOPE_MAXY,0,CLIP_TO_ENVELOPE,NO,BBOX_COORDINATE_SYSTEM,<Unused>,_MERGE_SCHEMAS,YES\"\",META_MACROS,\"\"SourcePREFER_POST,No,SourcePREFERRED_VERSION,1.0.0,SourceUSE_HTTP_AUTH,NO,SourceHTTP_AUTH_USER,,SourceHTTP_AUTH_PASSWORD,,SourceHTTP_AUTH_METHOD,Basic,SourceUSE_PROXY_SERVER,NO,SourceHTTP_PROXY,null,SourceHTTP_PROXY_PORT,null,SourceHTTP_PROXY_USER,,SourceHTTP_PROXY_PASSWORD,,SourceHTTP_PROXY_AUTH_METHOD,Basic,SourceMAX_RESULT_FEATURES,,SourceOUTPUT_FORMAT,,SourceFILTER_EXPRESSION,,SourceXSD_DOC,,SourceFME_FEATURE_IDENTIFIER,,SourceSRS_AXIS_ORDER,,SourceMAP_EMBEDDED_OBJECTS_AS,ATTRIBUTES,SourceMAP_PREDEFINED_GML_PROPERTIES,NO,SourceMAP_GEOMETRY_COLUMNS,YES,SourceMAP_COMPLEX_PROPERTIES_AS,\"\"\"\"Nested Attributes\"\"\"\",SourceMAX_MULTI_LIST_LEVEL,,SourceXML_FRAGMENTS_AS_DOCUMENTS,YES,SourceFLATTEN_XML_FRAGMENTS,NO,SourceFLATTEN_XML_FRAGMENTS_OPEN_LIST_BRACE,,SourceFLATTEN_XML_FRAGMENTS_CLOSE_LIST_BRACE,,SourceFLATTEN_XML_FRAGMENTS_SEPARATOR,,SourceGML_READER_GROUP,,SourceUSE_OLD_READER,NO,SourceDISABLE_XML_NAMESPACE_PROCESSING,NO,SourceARCGIS_CACHE_GROUP,,SourceLOCAL_CACHE_EXPIRY,60,SourceEXPOSE_ATTRS_GROUP,,SourceWFS_EXPOSE_FORMAT_ATTRS,,SourceUSE_SEARCH_ENVELOPE,NO,SourceSEARCH_ENVELOPE_MINX,0,SourceSEARCH_ENVELOPE_MINY,0,SourceSEARCH_ENVELOPE_MAXX,0,SourceSEARCH_ENVELOPE_MAXY,0,SourceCLIP_TO_ENVELOPE,NO,SourceBBOX_COORDINATE_SYSTEM,<Unused>\"\",METAFILE,WFS,COORDSYS,,IDLIST," + str(ldsLayerID) + ",__FME_DATASET_IS_SOURCE__,true\"", os.path.join(arcpy.env.scratchFolder, str(ldsLayerID) + ".gdb"))
 
-        else:
         # Otherwise downloading changeset
-            # Get the to date (current date)
-
-            # Get the from date (date in config)            
-
-            # Setup URL
-            wfsURL = "http://wfs.data.linz.govt.nz/" + key + "/v/x" + str(layerID) + "-changeset"
-
-            # Download data via WFS feed
-            arcpy.QuickImport_interop("WFS," + wfsURL + "/wfs?version=1.0.0&SRSName=EPSG:2193&viewparams=from:2012-03-24;to:2012-08-01,\"RUNTIME_MACROS,\"\"PREFER_POST,No,PREFERRED_VERSION,1.0.0,USE_HTTP_AUTH,NO,HTTP_AUTH_USER,,HTTP_AUTH_PASSWORD,,HTTP_AUTH_METHOD,Basic,USE_PROXY_SERVER,NO,HTTP_PROXY,null,HTTP_PROXY_PORT,null,HTTP_PROXY_USER,,HTTP_PROXY_PASSWORD,,HTTP_PROXY_AUTH_METHOD,Basic,TABLELIST,\"\"\"\"\"\"\"\"\"\"\"\"x" + str(layerID) + "-changeset" + "\"\"\"\"\"\"\"\"\"\"\"\",MAX_RESULT_FEATURES,,OUTPUT_FORMAT,,FILTER_EXPRESSION,,XSD_DOC,,FME_FEATURE_IDENTIFIER,,SRS_AXIS_ORDER,,MAP_EMBEDDED_OBJECTS_AS,ATTRIBUTES,MAP_PREDEFINED_GML_PROPERTIES,NO,MAP_GEOMETRY_COLUMNS,YES,MAP_COMPLEX_PROPERTIES_AS,\"\"\"\"Nested Attributes\"\"\"\",MAX_MULTI_LIST_LEVEL,,XML_FRAGMENTS_AS_DOCUMENTS,YES,FLATTEN_XML_FRAGMENTS,NO,FLATTEN_XML_FRAGMENTS_OPEN_LIST_BRACE,,FLATTEN_XML_FRAGMENTS_CLOSE_LIST_BRACE,,FLATTEN_XML_FRAGMENTS_SEPARATOR,,GML_READER_GROUP,,USE_OLD_READER,NO,DISABLE_XML_NAMESPACE_PROCESSING,NO,ARCGIS_CACHE_GROUP,,LOCAL_CACHE_EXPIRY,60,EXPOSE_ATTRS_GROUP,,WFS_EXPOSE_FORMAT_ATTRS,,USE_SEARCH_ENVELOPE,NO,SEARCH_ENVELOPE_MINX,0,SEARCH_ENVELOPE_MINY,0,SEARCH_ENVELOPE_MAXX,0,SEARCH_ENVELOPE_MAXY,0,CLIP_TO_ENVELOPE,NO,BBOX_COORDINATE_SYSTEM,<Unused>,_MERGE_SCHEMAS,YES\"\",META_MACROS,\"\"SourcePREFER_POST,No,SourcePREFERRED_VERSION,1.0.0,SourceUSE_HTTP_AUTH,NO,SourceHTTP_AUTH_USER,,SourceHTTP_AUTH_PASSWORD,,SourceHTTP_AUTH_METHOD,Basic,SourceUSE_PROXY_SERVER,NO,SourceHTTP_PROXY,null,SourceHTTP_PROXY_PORT,null,SourceHTTP_PROXY_USER,,SourceHTTP_PROXY_PASSWORD,,SourceHTTP_PROXY_AUTH_METHOD,Basic,SourceMAX_RESULT_FEATURES,,SourceOUTPUT_FORMAT,,SourceFILTER_EXPRESSION,,SourceXSD_DOC,,SourceFME_FEATURE_IDENTIFIER,,SourceSRS_AXIS_ORDER,,SourceMAP_EMBEDDED_OBJECTS_AS,ATTRIBUTES,SourceMAP_PREDEFINED_GML_PROPERTIES,NO,SourceMAP_GEOMETRY_COLUMNS,YES,SourceMAP_COMPLEX_PROPERTIES_AS,\"\"\"\"Nested Attributes\"\"\"\",SourceMAX_MULTI_LIST_LEVEL,,SourceXML_FRAGMENTS_AS_DOCUMENTS,YES,SourceFLATTEN_XML_FRAGMENTS,NO,SourceFLATTEN_XML_FRAGMENTS_OPEN_LIST_BRACE,,SourceFLATTEN_XML_FRAGMENTS_CLOSE_LIST_BRACE,,SourceFLATTEN_XML_FRAGMENTS_SEPARATOR,,SourceGML_READER_GROUP,,SourceUSE_OLD_READER,NO,SourceDISABLE_XML_NAMESPACE_PROCESSING,NO,SourceARCGIS_CACHE_GROUP,,SourceLOCAL_CACHE_EXPIRY,60,SourceEXPOSE_ATTRS_GROUP,,SourceWFS_EXPOSE_FORMAT_ATTRS,,SourceUSE_SEARCH_ENVELOPE,NO,SourceSEARCH_ENVELOPE_MINX,0,SourceSEARCH_ENVELOPE_MINY,0,SourceSEARCH_ENVELOPE_MAXX,0,SourceSEARCH_ENVELOPE_MAXY,0,SourceCLIP_TO_ENVELOPE,NO,SourceBBOX_COORDINATE_SYSTEM,<Unused>\"\",METAFILE,WFS,COORDSYS,,IDLIST,\"\"\"\"\"\"x" + str(layerID) + "-changeset" + "\"\"\"\"\"\",__FME_DATASET_IS_SOURCE__,true\"", os.path.join(arcpy.env.scratchFolder, "layerChanges_" + str(layerID) + ".gdb"))
-
-            # Compare changeset with original dataset
-           
-        # --------------------------------------- End of code --------------------------------------- #  
+        else:
+            if (len(lastUpdateConfig) > 0):                      
+                # Convert config file to xml
+                configFileXML = ET.parse(lastUpdateConfig)    
+                # Import and reference the configuration file
+                root = configFileXML.getroot()
             
+                # Get the date from config
+                fromDate = root.find("lastUpdate").text
+                
+                # Get the current date
+                currentDate = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+                dateParams = "from:" + fromDate + ";to:" + currentDate
+               
+                # Setup URL
+                wfsURL = "https://data.linz.govt.nz/services;key=" + key + "/wfs/" + str(ldsLayerID) + "-changeset"
+
+                # Logging
+                if (enableLogging == "true"):
+                    logger.info("Downloading changes data with ID - " + str(ldsLayerID) + "...")
+                arcpy.AddMessage("Downloading changes data with ID - " + str(ldsLayerID) + "...")
+                
+                # Download data via WFS feed - Changeset     
+                arcpy.QuickImport_interop("WFS," + wfsURL + "?version=1.0.0&SRSName=EPSG:2193&viewparams=" + dateParams + ",\"RUNTIME_MACROS,\"\"PREFER_POST,No,PREFERRED_VERSION,1.0.0,USE_HTTP_AUTH,NO,HTTP_AUTH_USER,,HTTP_AUTH_PASSWORD,,HTTP_AUTH_METHOD,Basic,USE_PROXY_SERVER,NO,HTTP_PROXY,null,HTTP_PROXY_PORT,null,HTTP_PROXY_USER,,HTTP_PROXY_PASSWORD,,HTTP_PROXY_AUTH_METHOD,Basic,TABLELIST,\"\"\"\"\"\"\"\"\"\"\"\"x" + str(ldsLayerID) + "\"\"\"\"\"\"\"\"\"\"\"\",MAX_RESULT_FEATURES,,OUTPUT_FORMAT,,FILTER_EXPRESSION,,XSD_DOC,,FME_FEATURE_IDENTIFIER,,SRS_AXIS_ORDER,,MAP_EMBEDDED_OBJECTS_AS,ATTRIBUTES,MAP_PREDEFINED_GML_PROPERTIES,NO,MAP_GEOMETRY_COLUMNS,YES,MAP_COMPLEX_PROPERTIES_AS,\"\"\"\"Nested Attributes\"\"\"\",MAX_MULTI_LIST_LEVEL,,XML_FRAGMENTS_AS_DOCUMENTS,YES,FLATTEN_XML_FRAGMENTS,NO,FLATTEN_XML_FRAGMENTS_OPEN_LIST_BRACE,,FLATTEN_XML_FRAGMENTS_CLOSE_LIST_BRACE,,FLATTEN_XML_FRAGMENTS_SEPARATOR,,GML_READER_GROUP,,USE_OLD_READER,NO,DISABLE_XML_NAMESPACE_PROCESSING,NO,ARCGIS_CACHE_GROUP,,LOCAL_CACHE_EXPIRY,60,EXPOSE_ATTRS_GROUP,,WFS_EXPOSE_FORMAT_ATTRS,,USE_SEARCH_ENVELOPE,NO,SEARCH_ENVELOPE_MINX,0,SEARCH_ENVELOPE_MINY,0,SEARCH_ENVELOPE_MAXX,0,SEARCH_ENVELOPE_MAXY,0,CLIP_TO_ENVELOPE,NO,BBOX_COORDINATE_SYSTEM,<Unused>,_MERGE_SCHEMAS,YES\"\",META_MACROS,\"\"SourcePREFER_POST,No,SourcePREFERRED_VERSION,1.0.0,SourceUSE_HTTP_AUTH,NO,SourceHTTP_AUTH_USER,,SourceHTTP_AUTH_PASSWORD,,SourceHTTP_AUTH_METHOD,Basic,SourceUSE_PROXY_SERVER,NO,SourceHTTP_PROXY,null,SourceHTTP_PROXY_PORT,null,SourceHTTP_PROXY_USER,,SourceHTTP_PROXY_PASSWORD,,SourceHTTP_PROXY_AUTH_METHOD,Basic,SourceMAX_RESULT_FEATURES,,SourceOUTPUT_FORMAT,,SourceFILTER_EXPRESSION,,SourceXSD_DOC,,SourceFME_FEATURE_IDENTIFIER,,SourceSRS_AXIS_ORDER,,SourceMAP_EMBEDDED_OBJECTS_AS,ATTRIBUTES,SourceMAP_PREDEFINED_GML_PROPERTIES,NO,SourceMAP_GEOMETRY_COLUMNS,YES,SourceMAP_COMPLEX_PROPERTIES_AS,\"\"\"\"Nested Attributes\"\"\"\",SourceMAX_MULTI_LIST_LEVEL,,SourceXML_FRAGMENTS_AS_DOCUMENTS,YES,SourceFLATTEN_XML_FRAGMENTS,NO,SourceFLATTEN_XML_FRAGMENTS_OPEN_LIST_BRACE,,SourceFLATTEN_XML_FRAGMENTS_CLOSE_LIST_BRACE,,SourceFLATTEN_XML_FRAGMENTS_SEPARATOR,,SourceGML_READER_GROUP,,SourceUSE_OLD_READER,NO,SourceDISABLE_XML_NAMESPACE_PROCESSING,NO,SourceARCGIS_CACHE_GROUP,,SourceLOCAL_CACHE_EXPIRY,60,SourceEXPOSE_ATTRS_GROUP,,SourceWFS_EXPOSE_FORMAT_ATTRS,,SourceUSE_SEARCH_ENVELOPE,NO,SourceSEARCH_ENVELOPE_MINX,0,SourceSEARCH_ENVELOPE_MINY,0,SourceSEARCH_ENVELOPE_MAXX,0,SourceSEARCH_ENVELOPE_MAXY,0,SourceCLIP_TO_ENVELOPE,NO,SourceBBOX_COORDINATE_SYSTEM,<Unused>\"\",METAFILE,WFS,COORDSYS,,IDLIST," + str(ldsLayerID) + "-changeset" + ",__FME_DATASET_IS_SOURCE__,true\"", os.path.join(arcpy.env.scratchFolder, str(ldsLayerID) + "-changeset.gdb"))
+
+                # Set path to the change dataset just downloaded
+                changeDataset = os.path.join(arcpy.env.scratchFolder, str(ldsLayerID) + "-changeset.gdb\\" + str(ldsLayerID).replace("-", "_") + "_changeset")
+
+                # Open dataset being updated
+                with arcpy.da.UpdateCursor(dataset,datasetJoinField) as updateCursor:
+                    # For each row in the dataset
+                    for row in updateCursor:
+                        datasetID = row[0]
+
+                        # Setup the fields to query
+                        fields = ["__change__"]
+                        fields.append(datasetJoinField)
+                        # Open change dataset
+                        with arcpy.da.SearchCursor(changeDataset,fields) as searchCursor: # os.path.join(arcpy.env.scratchFolder, str(ldsLayerID) + ".gdb"
+                            # For each row in the change dataset
+                            for row in searchCursor:
+                                changeID = row[1]
+                                change = row[0]
+                                # If this row is in the changes dataset and the update is delete or update
+                                if ((datasetID == changeID) and ((change.lower() == "update") or (change.lower() == "delete"))):
+                                    # Delete the record from the dataset
+                                    updateCursor.deleteRow()
+
+
+                # Open change dataset
+                with arcpy.da.UpdateCursor(changeDataset,"__change__") as updateCursorChange:
+                    # For each row in the change dataset
+                    for row in updateCursorChange:
+                        change = row[0]
+                        # If this row is a delete
+                        if (change.lower() == "delete"):
+                            # Delete the record from the change dataset
+                            updateCursorChange.deleteRow()
+                                    
+                # Delete cursor objects
+                del updateCursor, updateCursorChange, searchCursor
+
+                # Append in all the new data from the change dataset
+                arcpy.Append_management(changeDataset, dataset, "NO_TEST", "", "")          
+            else:
+                arcpy.AddError("No last update configuration file provided...") 
+                # Logging
+                if (enableLogging == "true"):
+                    # Log error          
+                    logger.error("No last update configuration file provided...")                  
+                    # Remove file handler and close log file
+                    logging.FileHandler.close(logMessage)
+                    logger.removeHandler("No last update configuration file provided...") 
+                if (sendErrorEmail == "true"):
+                    # Send email
+                    sendEmail("No last update configuration file provided...") 
+                            
+        # --------------------------------------- End of code --------------------------------------- #  
+                        
         # If called from gp tool return the arcpy parameter   
         if __name__ == '__main__':
             # Return the output if there is any
@@ -107,9 +178,9 @@ def mainFunction(key,layerID,downloadType,lastUpdateConfig,dataset): # Get param
         # Build and show the error message
         for i in range(len(e.args)):
             if (i == 0):
-                errorMessage = e.args[i]
+                errorMessage = unicode(e.args[i]).encode('utf-8')
             else:
-                errorMessage = errorMessage + " " + e.args[i]
+                errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
         arcpy.AddError(errorMessage)              
         # Logging
         if (enableLogging == "true"):

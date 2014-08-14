@@ -138,7 +138,7 @@ def mainFunction(geodatabase): # Get parameters from ArcGIS Desktop tool by sepe
                         arcpy.AddMessage("Loading in orphaned archive dataset records - " + dataset + "...")
                     
                         # Update the dates in the new archive dataset from the old archive dataset
-                        sqlQuery = "UPDATE " + dataset + " SET " + dataset + ".GDB_FROM_DATE = " + baseDataset + "_Archive" + ".GDB_FROM_DATE, " + dataset + ".GDB_TO_DATE = " + baseDataset + "_Archive" + ".GDB_TO_DATE FROM " + dataset + " INNER JOIN " + baseDataset + "_Archive" + " ON " + dataset + ".GDB_ARCHIVE_OID = " + baseDataset + "_Archive" + ".GDB_ARCHIVE_OID"
+                        sqlQuery = "UPDATE " + dataset + " SET " + dataset + ".GDB_FROM_DATE = " + baseDataset + "_Archive" + ".GDB_FROM_DATE, " + dataset + ".GDB_TO_DATE = " + baseDataset + "_Archive" + ".GDB_TO_DATE FROM " + dataset + " INNER JOIN " + baseDataset + "_Archive" + " ON " + dataset + ".GDB_ARCHIVE_OID = " + baseDataset + "_Archive" + ".OBJECTID"
                         sqlResult = sqlConnection.execute(sqlQuery)
 
                         # Update the current dates in the new archive dataset to a year of "8888"
@@ -169,13 +169,13 @@ def mainFunction(geodatabase): # Get parameters from ArcGIS Desktop tool by sepe
                         # Delete/Rename datasets not needed any longer
                         arcpy.Rename_management(baseDataset + "_Archive", baseDataset + "_H", "Feature Class")
                         arcpy.Delete_management(baseDataset + "_Current")                        
-        # --------------------------------------- End of code --------------------------------------- #  
                 else:
                     # Logging
                     if (enableLogging == "true"):
                         logger.warning("No base dataset found - " + baseDataset + "...")
                     arcpy.AddWarning("No base dataset found - " + baseDataset + "...")
-                        
+        # --------------------------------------- End of code --------------------------------------- #
+           
         # If called from gp tool return the arcpy parameter   
         if __name__ == '__main__':
             # Return the output if there is any
