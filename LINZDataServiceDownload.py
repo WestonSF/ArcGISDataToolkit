@@ -124,38 +124,47 @@ def mainFunction(key,extent,ldsLayerID,ldsJoinField,downloadType,lastUpdateConfi
                 if (enableLogging == "true"):
                     logger.info("Downloading changes data with ID - " + str(ldsLayerID) + "...")
                 arcpy.AddMessage("Downloading changes data with ID - " + str(ldsLayerID) + "...")
-                
+
                 # Download data via WFS feed - Changeset     
                 arcpy.QuickImport_interop("WFS," + wfsURL + "?version=1.0.0&SRSName=EPSG:2193&viewparams=" + dateParams + ",\"RUNTIME_MACROS,\"\"PREFER_POST,No,PREFERRED_VERSION,1.0.0,USE_HTTP_AUTH,NO,HTTP_AUTH_USER,,HTTP_AUTH_PASSWORD,,HTTP_AUTH_METHOD,Basic,USE_PROXY_SERVER,NO,HTTP_PROXY,null,HTTP_PROXY_PORT,null,HTTP_PROXY_USER,,HTTP_PROXY_PASSWORD,,HTTP_PROXY_AUTH_METHOD,Basic,TABLELIST,\"\"\"\"\"\"\"\"\"\"\"\"x" + str(ldsLayerID) + "\"\"\"\"\"\"\"\"\"\"\"\",MAX_RESULT_FEATURES,,OUTPUT_FORMAT,,FILTER_EXPRESSION,,XSD_DOC,,FME_FEATURE_IDENTIFIER,,SRS_AXIS_ORDER,,MAP_EMBEDDED_OBJECTS_AS,ATTRIBUTES,MAP_PREDEFINED_GML_PROPERTIES,NO,MAP_GEOMETRY_COLUMNS,YES,MAP_COMPLEX_PROPERTIES_AS,\"\"\"\"Nested Attributes\"\"\"\",MAX_MULTI_LIST_LEVEL,,XML_FRAGMENTS_AS_DOCUMENTS,YES,FLATTEN_XML_FRAGMENTS,NO,FLATTEN_XML_FRAGMENTS_OPEN_LIST_BRACE,,FLATTEN_XML_FRAGMENTS_CLOSE_LIST_BRACE,,FLATTEN_XML_FRAGMENTS_SEPARATOR,,GML_READER_GROUP,,USE_OLD_READER,NO,DISABLE_XML_NAMESPACE_PROCESSING,NO,ARCGIS_CACHE_GROUP,,LOCAL_CACHE_EXPIRY,60,EXPOSE_ATTRS_GROUP,,WFS_EXPOSE_FORMAT_ATTRS,," + spatialExtent + ",_MERGE_SCHEMAS,YES\"\",META_MACROS,\"\"SourcePREFER_POST,No,SourcePREFERRED_VERSION,1.0.0,SourceUSE_HTTP_AUTH,NO,SourceHTTP_AUTH_USER,,SourceHTTP_AUTH_PASSWORD,,SourceHTTP_AUTH_METHOD,Basic,SourceUSE_PROXY_SERVER,NO,SourceHTTP_PROXY,null,SourceHTTP_PROXY_PORT,null,SourceHTTP_PROXY_USER,,SourceHTTP_PROXY_PASSWORD,,SourceHTTP_PROXY_AUTH_METHOD,Basic,SourceMAX_RESULT_FEATURES,,SourceOUTPUT_FORMAT,,SourceFILTER_EXPRESSION,,SourceXSD_DOC,,SourceFME_FEATURE_IDENTIFIER,,SourceSRS_AXIS_ORDER,,SourceMAP_EMBEDDED_OBJECTS_AS,ATTRIBUTES,SourceMAP_PREDEFINED_GML_PROPERTIES,NO,SourceMAP_GEOMETRY_COLUMNS,YES,SourceMAP_COMPLEX_PROPERTIES_AS,\"\"\"\"Nested Attributes\"\"\"\",SourceMAX_MULTI_LIST_LEVEL,,SourceXML_FRAGMENTS_AS_DOCUMENTS,YES,SourceFLATTEN_XML_FRAGMENTS,NO,SourceFLATTEN_XML_FRAGMENTS_OPEN_LIST_BRACE,,SourceFLATTEN_XML_FRAGMENTS_CLOSE_LIST_BRACE,,SourceFLATTEN_XML_FRAGMENTS_SEPARATOR,,SourceGML_READER_GROUP,,SourceUSE_OLD_READER,NO,SourceDISABLE_XML_NAMESPACE_PROCESSING,NO,SourceARCGIS_CACHE_GROUP,,SourceLOCAL_CACHE_EXPIRY,60,SourceEXPOSE_ATTRS_GROUP,,SourceWFS_EXPOSE_FORMAT_ATTRS,," + sourceSpatialExtent + "\"\",METAFILE,WFS,COORDSYS,,IDLIST," + str(ldsLayerID) + "-changeset" + ",__FME_DATASET_IS_SOURCE__,true\"", os.path.join(arcpy.env.scratchFolder, str(ldsLayerID) + "-changeset.gdb"))
-
+                
                 # Set path to the change dataset just downloaded
                 changeDataset = os.path.join(arcpy.env.scratchFolder, str(ldsLayerID) + "-changeset.gdb\\" + str(ldsLayerID).replace("-", "_") + "_changeset")
 
+                # Logging
+                if (enableLogging == "true"):
+                    logger.info("Analysing the change dataset - " + changeDataset + "...")
+                arcpy.AddMessage("Analysing the change dataset - " + changeDataset + "...")
+                
                 # If a change dataset was downloaded    
                 if arcpy.Exists(changeDataset):       
                     # Get number of records in the change dataset
                     recordsUpdate = arcpy.GetCount_management(changeDataset)
-                    
+
+                    # Setup the fields to query
+                    deleteIDs = []
+                    fields = ["__change__"]
+                    fields.append(datasetJoinField)
+                    # Open change dataset
+                    with arcpy.da.SearchCursor(changeDataset,fields) as searchCursor: 
+                        # For each row in the change dataset
+                        for row in searchCursor:
+                            changeID = row[1]
+                            change = row[0]                       
+                            # If this row is in the changes dataset and the update is delete or update
+                            if ((change.lower() == "update") or (change.lower() == "delete")):
+                                # Add the ID to the deletes list
+                                deleteIDs.append(changeID)
+                 
                     # Open dataset being updated
                     with arcpy.da.UpdateCursor(dataset,datasetJoinField) as updateCursor:
                         # For each row in the dataset
                         for row in updateCursor:
                             datasetID = row[0]
-
-                            # Setup the fields to query
-                            fields = ["__change__"]
-                            fields.append(datasetJoinField)
-                            # Open change dataset
-                            with arcpy.da.SearchCursor(changeDataset,fields) as searchCursor: # os.path.join(arcpy.env.scratchFolder, str(ldsLayerID) + ".gdb"
-                                # For each row in the change dataset
-                                for row in searchCursor:
-                                    changeID = row[1]
-                                    change = row[0]
-                                    # If this row is in the changes dataset and the update is delete or update
-                                    if ((datasetID == changeID) and ((change.lower() == "update") or (change.lower() == "delete"))):
-                                        # Delete the record from the dataset
-                                        updateCursor.deleteRow()
-
+                            # If record is in delete list
+                            if datasetID in deleteIDs:
+                                # Delete the record from the dataset being updated
+                                updateCursor.deleteRow()
 
                     # Open change dataset
                     with arcpy.da.UpdateCursor(changeDataset,"__change__") as updateCursorChange:
@@ -175,7 +184,7 @@ def mainFunction(key,extent,ldsLayerID,ldsJoinField,downloadType,lastUpdateConfi
                         logger.info("Updating dataset - " + dataset + ": " + str(recordsUpdate) + " changed records...")
                     arcpy.AddMessage("Updating dataset - " + dataset + ": " + str(recordsUpdate) + " changed records...")
                 
-                    # Append in all the new data from the change dataset
+                    # Append in all the new data from the change dataset - All records with add or update
                     arcpy.Append_management(changeDataset, dataset, "NO_TEST", "", "")          
                 else:
                     # Logging

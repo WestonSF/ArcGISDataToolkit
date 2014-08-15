@@ -12,5 +12,3 @@ c:\python27\arcgisx6410.2\python "C:\development\projects\arcgis data toolkit\Ca
  "wccgis" ^
 
  "CQWx0b4S"
-
-pause
