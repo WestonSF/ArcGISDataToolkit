@@ -8,3 +8,4 @@ c:\python27\arcgis10.2\python "C:\Development\Projects\ArcGIS Data Toolkit\LINZD
  "C:\Development\Projects\ArcGIS Data Toolkit\Configuration\LINZDataServiceDownload-Roads.xml" ^
  "Database Connections\sdeadmin@WCC.sde\WellingtonCityCouncil.SDEADMIN.GreaterWellingtonRoads" ^
  "id"
+pause
