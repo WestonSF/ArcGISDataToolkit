@@ -1,7 +1,7 @@
 #-------------------------------------------------------------
 # Name:       Field Aliases Export and Import
-# Purpose:    Exports field aliases for all layers in a map document to a CSV file. This CSV file can then be
-#             used as configuration to import field aliases to another map document.
+# Purpose:    Exports field aliases for datasets specified to a CSV file. Can also use a configuration CSV file to import
+#             field aliases to datasets.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    25/08/2014
 # Last Updated:    25/08/2014
@@ -16,6 +16,8 @@ import sys
 import logging
 import smtplib
 import arcpy
+import string
+import csv
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -32,7 +34,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(mapDocument,importExport,csvFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(featureClasses,importExport,folder): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -42,10 +44,96 @@ def mainFunction(mapDocument,importExport,csvFile): # Get parameters from ArcGIS
             logger.info("Process started.")
             
         # --------------------------------------- Start of code --------------------------------------- #
-        
-        mxd = arcpy.mapping.MapDocument(r"C:\Project\Project.mxd")
-        df = arcpy.mapping.ListDataFrames(mxd, "Traffic Analysis")[0]
 
+        # Load the feature classes into a list if input values provided
+        if (len(featureClasses) > 0):
+            # Remove out apostrophes
+            featureclassList = string.split(str(featureClasses).replace("'", ""), ";")
+
+            # Loop through the feature classes
+            for featureClass in featureclassList:
+                # Create a Describe object from the dataset
+                describeDataset = arcpy.Describe(featureClass)
+
+                # If exporting field aliases
+                if (importExport.lower() == "export"):                        
+                    # Create a CSV file for the datasets fields
+                    with open(os.path.join(folder, "FieldAliases_" + describeDataset.name + ".csv"), 'wb') as file:
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.info("Creating CSV - " + os.path.join(folder, "FieldAliases_" + describeDataset.name + ".csv") + "...")                                
+                        arcpy.AddMessage("Creating CSV - " + os.path.join(folder, "FieldAliases_" + describeDataset.name + ".csv") + "...")
+
+                        # Write the header role
+                        writer = csv.writer(file, delimiter=",")
+                        row = ["Field","Field Alias"] 
+                        writer.writerow(row)
+                        
+                        # Create a list of fields using the ListFields function
+                        fields = arcpy.ListFields(featureClass)
+
+                        # Iterate through the list of fields
+                        for field in fields:
+                            row = []
+                            # If field name doesn't include shape or OBJECTID
+                            fieldName = field.name
+                            if (("shape" not in fieldName.lower()) and ("objectid" not in fieldName.lower())):
+                                # Write the fields
+                                row.append(field.name)
+                                row.append(field.aliasName)
+                                writer.writerow(row)
+                    # Close the file
+                    file.close()
+                # If importing field aliases
+                if (importExport.lower() == "import"):
+                    # If configuration file exists for this feature class
+                    if (os.path.isfile(os.path.join(folder, "FieldAliases_" + describeDataset.name + ".csv")) == True):
+                        # Logging
+                        if (enableLogging == "true"):
+                            logger.info("Configuration file located for " + describeDataset.name + " - " + os.path.join(folder, "FieldAliases_" + describeDataset.name + ".csv") + "...")                                
+                        arcpy.AddMessage("Configuration file located for " + describeDataset.name + " - " + os.path.join(folder, "FieldAliases_" + describeDataset.name + ".csv") + "...")
+
+                        # Create a list of fields using the ListFields function
+                        fields = arcpy.ListFields(featureClass)
+
+                        # Iterate through the list of fields
+                        for field in fields:
+                            # Open the CSV file
+                            with open(os.path.join(folder, "FieldAliases_" + describeDataset.name + ".csv"), 'rb') as csvFile:
+                                # Read the CSV file
+                                rows = csv.reader(csvFile, delimiter=",")
+
+                                # For each row in the CSV
+                                count = 0
+                                for row in rows:
+                                    # Ignore the first line containing headers
+                                    if (count > 0):
+                                        # Get the field and field alias
+                                        configField = row[0]
+                                        configFieldAlias = row[1]
+                                        # If field is in config                                      
+                                        if (field.name == configField):
+                                            # Logging
+                                            if (enableLogging == "true"):
+                                                logger.info("Setting field alias to " + configFieldAlias + " for " + field.name + " field in " + describeDataset.name)                                
+                                            arcpy.AddMessage("Setting field alias to " + configFieldAlias + " for " + field.name + " field in " + describeDataset.name)  
+
+                                            # Set field alias to what is in config
+                                            arcpy.AlterField_management(featureClass, field.name, "", configFieldAlias)    
+                                    count = count + 1                                                                
+        else:
+            arcpy.AddError("No datasets provided") 
+            # Logging
+            if (enableLogging == "true"):
+                # Log error          
+                logger.error("No datasets provided")                 
+                # Remove file handler and close log file
+                logging.FileHandler.close(logMessage)
+                logger.removeHandler("No datasets provided")
+            if (sendErrorEmail == "true"):
+                # Send email
+                sendEmail("No datasets provided")
+            
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   

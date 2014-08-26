@@ -81,8 +81,8 @@ Exports all metadata in a geodatabase out to a text file.
 #### Restore Geodatabase History
 Re-attachs an orphaned history dataset to its base dataset, by re-enabling archiving and loading in the orphaned archived dataset records in a SQL Server database.  
 
-#### Field Aliases Export and Import (IN DEVELPOMENT)
-Exports field aliases for all layers in a map document to a CSV file. This CSV file can then be used as configuration to import field aliases to another map document.
+#### Field Aliases Export and Import
+Exports field aliases for datasets specified to a CSV file. Can also use a configuration CSV file to import field aliases to datasets.
 
 #### LINZ Data Service Download
 Downloads the data  from the LINZ data service by either downloading the entire dataset for WFS or downloading the changeset and updating the data.
