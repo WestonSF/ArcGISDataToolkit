@@ -12,7 +12,7 @@
 # Date Created:    31/05/2013
 # Last Updated:    14/07/2014
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.0/10.1/10.2
+# ArcGIS Version:   10.0+
 # Python Version:   2.6/2.7
 #--------------------------------
 
@@ -20,6 +20,7 @@
 import os
 import sys
 import logging
+import smtplib
 import zipfile
 import uuid
 import glob

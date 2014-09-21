@@ -18,6 +18,7 @@
 import os
 import sys
 import logging
+import smtplib
 import urllib2
 import zipfile
 import uuid

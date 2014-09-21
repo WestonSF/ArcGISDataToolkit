@@ -6,7 +6,7 @@
 # Date Created:    12/06/2014
 # Last Updated:    24/06/2014
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.1/10.2
+# ArcGIS Version:   10.1+
 # Python Version:   2.7
 #--------------------------------
 
