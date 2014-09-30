@@ -73,7 +73,7 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
                 output.write(chunk)
         output.close()
         
-        # Unzip the file to the scrtach folder
+        # Unzip the file to the scratch folder
         arcpy.AddMessage("Extracting zip file...")  
         zip = zipfile.ZipFile(os.path.join(arcpy.env.scratchFolder, "Data.zip"), mode="r")
         zip.extractall(arcpy.env.scratchFolder)
@@ -81,7 +81,7 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
         # Get the newest unzipped database from the scratch folder
         database = max(glob.iglob(arcpy.env.scratchFolder + r"\*.gdb"), key=os.path.getmtime)
         
-        # Assign the geodatbase workspace and load in the datasets to the lists
+        # Assign the geodatabase workspace and load in the datasets to the lists
         arcpy.env.workspace = database
         featureclassList = arcpy.ListFeatureClasses()
         tableList = arcpy.ListTables()       
