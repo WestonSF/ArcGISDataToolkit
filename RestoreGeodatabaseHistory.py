@@ -4,7 +4,7 @@
 #             loading in the orphaned archived dataset records in a SQL Server database.      
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    06/08/2014
-# Last Updated:    30/10/2014
+# Last Updated:    31/10/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.2+
 # Python Version:   2.7
@@ -179,7 +179,10 @@ def mainFunction(geodatabase): # Get parameters from ArcGIS Desktop tool by sepe
                         # Delete datasets not needed any longer
                         arcpy.Delete_management(baseDataset + "_Archive")
                         arcpy.Delete_management(baseDataset + "_Current")
-                        
+
+                        # Delete GUID field that is not needed anymore
+                        arcpy.DeleteField_management(baseDataset, "GUID")
+
                     elif isArchived == False:
                         # Logging
                         if (enableLogging == "true"):
