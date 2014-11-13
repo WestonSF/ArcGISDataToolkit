@@ -4,27 +4,28 @@
 #             and converting to a feature class.        
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    14/08/2013
-# Last Updated:    20/09/2013
+# Last Updated:    13/11/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1+
 # Python Version:   2.7
 #--------------------------------
 
-# Import modules and enable data to be overwritten
+# Import modules
 import os
 import sys
-import datetime
-import string
-import json
-import urllib
+import logging
 import smtplib
 import arcpy
+import json
+import urllib
+
+# Enable data to be overwritten
 arcpy.env.overwriteOutput = True
 
-# Set variables
-logInfo = "true"
-logFile = os.path.join(os.path.dirname(__file__), r"Logs\MapServiceDownload.log")
-sendEmail = "false"
+# Set global variables
+enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
+sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
 emailPassword = ""
@@ -35,59 +36,77 @@ output = None
 # Start of main function
 def mainFunction(mapService,featureClass): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
-        # Log start
-        if logInfo == "true":
-            loggingFunction(logFile,"start","")
+        # Logging
+        if (enableLogging == "true"):
+            # Setup logging
+            logger, logMessage = setLogging(logFile)
+            # Log start of process
+            logger.info("Process started.")
 
         # --------------------------------------- Start of code --------------------------------------- #        
 
-        # Create map service query
-        arcpy.AddMessage("Getting JSON from map service...")
-        mapServiceQuery = mapService + "/query?text=&geometry=&geometryType=&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&objectIds=&where=1%3D1&time=&returnCountOnly=false&returnIdsOnly=false&returnGeometry=true&maxAllowableOffset=&outSR=&outFields=*&f=pjson"
-        urlResponse = urllib.urlopen(mapServiceQuery);
-        # Get json for feature returned
-        mapServiceQueryJSONData = json.loads(urlResponse.read())
-              
-        # Get the geometry and create temporary feature class
-        arcpy.AddMessage("Converting JSON to feature class...")
-        count = 0
-        while (len(mapServiceQueryJSONData["features"]) > count): 
-            GeometryJSON = mapServiceQueryJSONData["features"][count]["geometry"]
-            # Add spatial reference to geometry
-            SpatialReference = mapServiceQueryJSONData["spatialReference"]["wkid"]
-            GeometryJSON["spatialReference"] = {'wkid' : SpatialReference}
-            Geometry = arcpy.AsShape(GeometryJSON, "True")
-            # If on the first record
-            if (count == 0):
-                # Create new feature class
-                arcpy.CopyFeatures_management(Geometry, featureClass)
-                # Load the attributes
-                for key, value in mapServiceQueryJSONData["features"][count]["attributes"].iteritems():
-                    # Add new field
-                    if key.lower() <> "objectid":
-                        arcpy.AddField_management(featureClass, key, "TEXT", "", "", "5000")
-                        # Insert value into field
-                        cursor = arcpy.UpdateCursor(featureClass)
-                        for row in cursor:
-                            row.setValue(key, value)
-                            cursor.updateRow(row)
-            else:
-                # Create new feature class then load into existing
-                arcpy.CopyFeatures_management(Geometry, "in_memory\TempFeature")
-                # Load the attributes
-                for key, value in mapServiceQueryJSONData["features"][count]["attributes"].iteritems():
-                    # Add new field
-                    if key.lower() <> "objectid":
-                        arcpy.AddField_management("in_memory\TempFeature", key, "TEXT", "", "", "")                    
-                        # Insert value into field
-                        cursor = arcpy.UpdateCursor("in_memory\TempFeature")
-                        for row in cursor:
-                            row.setValue(key, value)
-                            cursor.updateRow(row)
-                arcpy.Append_management("in_memory\TempFeature", featureClass, "NO_TEST", "", "")
-            count = count + 1
-            arcpy.AddMessage("Loaded " + str(count) + " of " + str(len(mapServiceQueryJSONData["features"])) + " features...")
+        # Query the map service to get the number of features as Object IDs
+        arcpy.AddMessage("Querying the map service...")
+        mapServiceQuery1 = mapService + "/query?where=1%3D1&returnIdsOnly=true&f=pjson"
+        urlResponse = urllib.urlopen(mapServiceQuery1);
+        # Get json for the response
+        mapServiceQuery1JSONData = json.loads(urlResponse.read())
 
+        arcpy.AddMessage("Number of records in the map service - " + str(len(mapServiceQuery1JSONData["objectIds"])) + "...")       
+        maxRequests = 1000
+        requestsMade = 0
+
+        # For each record returned        
+        for i in range(len(mapServiceQuery1JSONData["objectIds"])):
+            # For every 1000th record
+            if ((i % maxRequests) == 0):
+                # Create the query
+                startObjectID = int(mapServiceQuery1JSONData["objectIds"][i])
+                endObjectID = startObjectID + 1000
+                serviceQuery = "OBJECTID >= " + str(startObjectID) + " AND OBJECTID < " + str(endObjectID)
+
+                # Query the map service to get all data     
+                mapServiceQuery2 = mapService + "/query?where=" + serviceQuery + "&returnCountOnly=false&returnIdsOnly=false&returnGeometry=true&outFields=*&f=pjson"
+                urlResponse = urllib.urlopen(mapServiceQuery2);
+                # Get json for feature returned
+                mapServiceQuery2JSONData = json.loads(urlResponse.read())
+                
+                # Get the geometry and create temporary feature class
+                arcpy.AddMessage("Converting JSON to feature class...")
+                count = 0
+                while (len(mapServiceQuery2JSONData["features"]) > count): 
+                    GeometryJSON = mapServiceQuery2JSONData["features"][count]["geometry"]
+                    # Add spatial reference to geometry
+                    SpatialReference = mapServiceQuery2JSONData["spatialReference"]["wkid"]
+                    GeometryJSON["spatialReference"] = {'wkid' : SpatialReference}
+                    Geometry = arcpy.AsShape(GeometryJSON, "True")
+                    # If on the first record and first request
+                    if ((count == 0) and (requestsMade == 0)):
+                        # If it's the first request, create new feature class
+                        arcpy.CopyFeatures_management(Geometry, featureClass)
+                        
+                        # Go through the attributes
+                        for key, value in mapServiceQuery2JSONData["features"][count]["attributes"].iteritems():
+                            # Add new field
+                            if key.lower() <> "objectid":
+                                arcpy.AddField_management(featureClass, key, "TEXT", "", "", "5000")
+
+                    # Get the field names and values
+                    fields = ["SHAPE@"]
+                    values = [Geometry]                        
+                    for key, value in mapServiceQuery2JSONData["features"][count]["attributes"].iteritems():
+                        if key.lower() <> "objectid":
+                            fields.append(key)
+                            values.append(value)                                
+                      
+                    # Load it into existing feature class         
+                    cursor = arcpy.da.InsertCursor(featureClass,fields)
+                    cursor.insertRow(values)
+
+                    count = count + 1
+                    arcpy.AddMessage("Loaded " + str(count+(requestsMade*1000)) + " of " + str(len(mapServiceQuery1JSONData["objectIds"])) + " features...")
+
+                requestsMade = requestsMade + 1
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
@@ -100,65 +119,88 @@ def mainFunction(mapService,featureClass): # Get parameters from ArcGIS Desktop 
             # Return the output if there is any
             if output:
                 return output      
-        # Log start
-        if logInfo == "true":
-            loggingFunction(logFile,"end","")        
+        # Logging
+        if (enableLogging == "true"):
+            # Log end of process
+            logger.info("Process ended.")
+            # Remove file handler and close log file            
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
         pass
     # If arcpy error
-    except arcpy.ExecuteError:
-        # Show the message
-        arcpy.AddError(arcpy.GetMessages(2))        
-        # Log error
-        if logInfo == "true":  
-            loggingFunction(logFile,"error",arcpy.GetMessages(2))
+    except arcpy.ExecuteError:           
+        # Build and show the error message
+        errorMessage = arcpy.GetMessages(2)   
+        arcpy.AddError(errorMessage)           
+        # Logging
+        if (enableLogging == "true"):
+            # Log error          
+            logger.error(errorMessage)                 
+            # Remove file handler and close log file
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
+        if (sendErrorEmail == "true"):
+            # Send email
+            sendEmail(errorMessage)
     # If python error
     except Exception as e:
-        # Show the message
-        arcpy.AddError(e.args[0])             
-        # Log error
-        if logInfo == "true":         
-            loggingFunction(logFile,"error",e.args[0])
+        errorMessage = ""
+        # Build and show the error message
+        for i in range(len(e.args)):
+            if (i == 0):
+                errorMessage = unicode(e.args[i]).encode('utf-8')
+            else:
+                errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
+        arcpy.AddError(errorMessage)              
+        # Logging
+        if (enableLogging == "true"):
+            # Log error            
+            logger.error(errorMessage)               
+            # Remove file handler and close log file
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
+        if (sendErrorEmail == "true"):
+            # Send email
+            sendEmail(errorMessage)            
 # End of main function
 
-# Start of logging function
-def loggingFunction(logFile,result,info):
-    #Get the time/date
-    setDateTime = datetime.datetime.now()
-    currentDateTime = setDateTime.strftime("%d/%m/%Y - %H:%M:%S")
-    
-    # Open log file to log message and time/date
-    if result == "start":
-        with open(logFile, "a") as f:
-            f.write("---" + "\n" + "Process started at " + currentDateTime)
-    if result == "end":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Process ended at " + currentDateTime + "\n")
-            f.write("---" + "\n")
-    if result == "warning":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Warning: " + info)               
-    if result == "error":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Process ended at " + currentDateTime + "\n")
-            f.write("Error: " + info + "\n")        
-            f.write("---" + "\n")
-        # Send an email
-        if sendEmail == "true":
-            arcpy.AddMessage("Sending email...")
-            # Server and port information
-            smtpserver = smtplib.SMTP("smtp.gmail.com",587) 
-            smtpserver.ehlo()
-            smtpserver.starttls() 
-            smtpserver.ehlo
-            # Login with sender email address and password
-            smtpserver.login(emailUser, emailPassword)
-            # Email content
-            header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
-            message = header + '\n' + emailMessage + '\n' + '\n' + info
-            # Send the email and close the connection
-            smtpserver.sendmail(emailUser, emailTo, message)
-            smtpserver.close()                
-# End of logging function     
+
+# Start of set logging function
+def setLogging(logFile):
+    # Create a logger
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.setLevel(logging.DEBUG)
+    # Setup log message handler
+    logMessage = logging.FileHandler(logFile)
+    # Setup the log formatting
+    logFormat = logging.Formatter("%(asctime)s: %(levelname)s - %(message)s", "%d/%m/%Y - %H:%M:%S")
+    # Add formatter to log message handler
+    logMessage.setFormatter(logFormat)
+    # Add log message handler to logger
+    logger.addHandler(logMessage) 
+
+    return logger, logMessage               
+# End of set logging function
+
+
+# Start of send email function
+def sendEmail(message):
+    # Send an email
+    arcpy.AddMessage("Sending email...")
+    # Server and port information
+    smtpServer = smtplib.SMTP("smtp.gmail.com",587) 
+    smtpServer.ehlo()
+    smtpServer.starttls() 
+    smtpServer.ehlo
+    # Login with sender email address and password
+    smtpServer.login(emailUser, emailPassword)
+    # Email content
+    header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
+    body = header + '\n' + emailMessage + '\n' + '\n' + message
+    # Send the email and close the connection
+    smtpServer.sendmail(emailUser, emailTo, body)    
+# End of send email function
+
 
 # This test allows the script to be used from the operating
 # system command prompt (stand-alone), in a Python IDE, 

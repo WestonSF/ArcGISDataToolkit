@@ -172,7 +172,7 @@ def mainFunction(geodatabase): # Get parameters from ArcGIS Desktop tool by sepe
                         sqlQuery = "UPDATE " + dataset + " SET " + dataset + ".GDB_FROM_DATE = " + baseDataset + "_Archive" + ".GDB_FROM_DATE, " + dataset + ".GDB_TO_DATE = " + baseDataset + "_Archive" + ".GDB_TO_DATE FROM " + dataset + " INNER JOIN " + baseDataset + "_Archive" + " ON " + dataset + ".GUID = " + baseDataset + "_Archive" + ".GUID"
                         sqlResult = sqlConnection.execute(sqlQuery)
 
-                        # Rename the current dates from 9999-12-31 23:59:59 to 9999-12-31 00:00:00 otherwise it won't finish a record when editing and will end up with a duplicate record
+                        # Rename the current dates from 9999-12-31 23:59:59 (Oracle format) to 9999-12-31 00:00:00 (SQL server format) otherwise it won't finish a record when editing and will end up with a duplicate record
                         sqlQuery = "UPDATE " + dataset + " SET GDB_TO_DATE = convert(datetime, '9999-12-31 00:00:00',20) WHERE GDB_TO_DATE = convert(datetime, '9999-12-31 23:59:59',20)"
                         sqlResult = sqlConnection.execute(sqlQuery)
                         

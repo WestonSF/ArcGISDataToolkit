@@ -14,6 +14,9 @@ update the datasets with the same name in the specified geodatabase. If dataset 
 Updates data in a geodatabase from a CSV file. Will get the latest zip CSV from update folder and 
 updates the dataset with the same name in the specified geodatabase.
 
+#### Geodatabase - Update & Compress
+Will compress geodatabase, update statistics and rebuild tables indexes. 
+
 #### Google Drive Upload
 Uploads a specified file or folder to Google Drive account. 
 Need to generate keys first from here: 
