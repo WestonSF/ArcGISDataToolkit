@@ -94,6 +94,8 @@ Downloads the data  from the LINZ data service by either downloading the entire 
 Imports LINZ encumbrance data, cleans it up and pushes into feature class
  format with bank mortgage is with.
 
+#### MapInfo Data Import (IN DEVELPOMENT)
+Imports all MapInfo data to a selected geodatabase. Takes a folder as input and will find all MapInfo files in this folder and subfolders. Requires data interoperability extension.
 
 
 ## Features

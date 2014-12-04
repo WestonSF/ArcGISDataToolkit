@@ -1,43 +1,41 @@
 #-------------------------------------------------------------
 # Name:       Data Update From CSV
 # Purpose:    Updates a dataset in a geodatabase from a CSV file. Will get latest
-#             CSV file from update folder.         
+#             CSV file from the folder specified.         
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    05/12/2013
-# Last Updated:    05/12/2013
+# Last Updated:    28/11/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1+
 # Python Version:   2.7
 #--------------------------------
 
-# Import modules and enable data to be overwritten
+# Import modules
 import os
 import sys
-import datetime
+import logging
 import smtplib
 import arcpy
 import glob
 import string
+
+# Enable data to be overwritten
 arcpy.env.overwriteOutput = True
 
-# Set variables
-logInfo = "false"
-logFile = r""
-sendEmail = "false"
-emailTo = ""
-emailUser = ""
-emailPassword = ""
-emailSubject = ""
-emailMessage = ""
+# Set global variables
+enableLogging = "true" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+logFile = r"C:\Data\Tools & Scripts\ArcGIS Data Toolkit\Logs\DataUpdateFromCSV.log" # os.path.join(os.path.dirname(__file__), "Example.log")
+sendErrorEmail = "true"
+emailTo = "shaun_weston@eagle.co.nz"
+emailUser = "northlandgisserver@gmail.com"
+emailPassword = "E@gleT3chnology"
+emailSubject = "NRC Web GIS Server Error"
+emailMessage = "The bathings sites python script on the Northland GIS Web Server failed..."
 output = None
 
 # Start of main function
 def mainFunction(updateFolder,geodatabase): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
-        # Log start
-        if logInfo == "true":
-            loggingFunction(logFile,"start","")
-
         # --------------------------------------- Start of code --------------------------------------- #        
         # Get the newest CSV file from the dropbox folder, copy it and call it latest
         latestFile = max(glob.iglob(updateFolder + r"\*.csv"), key=os.path.getmtime)
@@ -73,7 +71,7 @@ def mainFunction(updateFolder,geodatabase): # Get parameters from ArcGIS Desktop
             arcpy.AddMessage("Warning: " + os.path.join(geodatabase, datasetName[0]) + " does not exist and won't be updated")
             # Log warning
             if logInfo == "true":  
-                loggingFunction(logFile,"warning",os.path.join(geodatabase, datasetName[0]) + " does not exist and won't be updated")            
+                logger.warning(os.path.join(geodatabase, datasetName[0]) + " does not exist and won't be updated")            
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
@@ -86,65 +84,92 @@ def mainFunction(updateFolder,geodatabase): # Get parameters from ArcGIS Desktop
             # Return the output if there is any
             if output:
                 return output      
-        # Log end
-        if logInfo == "true":
-            loggingFunction(logFile,"end","")        
+        # Logging
+        if (enableLogging == "true"):
+            # Log end of process
+            logger.info("Process ended.")
+            # Remove file handler and close log file            
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
         pass
     # If arcpy error
-    except arcpy.ExecuteError:
-        # Show the message
-        arcpy.AddMessage(arcpy.GetMessages(2))        
-        # Log error
-        if logInfo == "true":  
-            loggingFunction(logFile,"error",arcpy.GetMessages(2))
+    except arcpy.ExecuteError:           
+        # Build and show the error message
+        errorMessage = arcpy.GetMessages(2)   
+        arcpy.AddError(errorMessage)           
+        # Logging
+        if (enableLogging == "true"):
+            # Log error          
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
+            # Remove file handler and close log file
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
+        if (sendErrorEmail == "true"):
+            # Send email
+            sendEmail(errorMessage)
     # If python error
     except Exception as e:
-        # Show the message
-        arcpy.AddMessage(e.args[0])          
-        # Log error
-        if logInfo == "true":         
-            loggingFunction(logFile,"error",e.args[0])
+        errorMessage = ""
+        # Build and show the error message
+        for i in range(len(e.args)):
+            if (i == 0):
+                errorMessage = unicode(e.args[i]).encode('utf-8')
+            else:
+                errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
+        arcpy.AddError(errorMessage)              
+        # Logging
+        if (enableLogging == "true"):
+            # Log error            
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
+            # Remove file handler and close log file
+            logging.FileHandler.close(logMessage)
+            logger.removeHandler(logMessage)
+        if (sendErrorEmail == "true"):
+            # Send email
+            sendEmail(errorMessage)            
 # End of main function
 
-# Start of logging function
-def loggingFunction(logFile,result,info):
-    #Get the time/date
-    setDateTime = datetime.datetime.now()
-    currentDateTime = setDateTime.strftime("%d/%m/%Y - %H:%M:%S")
-    
-    # Open log file to log message and time/date
-    if result == "start":
-        with open(logFile, "a") as f:
-            f.write("---" + "\n" + "Process started at " + currentDateTime)
-    if result == "end":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Process ended at " + currentDateTime + "\n")
-            f.write("---" + "\n")
-    if result == "warning":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Warning: " + info)               
-    if result == "error":
-        with open(logFile, "a") as f:
-            f.write("\n" + "Process ended at " + currentDateTime + "\n")
-            f.write("Error: " + info + "\n")        
-            f.write("---" + "\n")
-        # Send an email
-        if sendEmail == "true":
-            arcpy.AddMessage("Sending email...")
-            # Server and port information
-            smtpserver = smtplib.SMTP("smtp.gmail.com",587) 
-            smtpserver.ehlo()
-            smtpserver.starttls() 
-            smtpserver.ehlo
-            # Login with sender email address and password
-            smtpserver.login(emailUser, emailPassword)
-            # Email content
-            header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
-            message = header + '\n' + emailMessage + '\n' + '\n' + info
-            # Send the email and close the connection
-            smtpserver.sendmail(emailUser, emailTo, message)
-            smtpserver.close()                
-# End of logging function    
+
+# Start of set logging function
+def setLogging(logFile):
+    # Create a logger
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.setLevel(logging.DEBUG)
+    # Setup log message handler
+    logMessage = logging.FileHandler(logFile)
+    # Setup the log formatting
+    logFormat = logging.Formatter("%(asctime)s: %(levelname)s - %(message)s", "%d/%m/%Y - %H:%M:%S")
+    # Add formatter to log message handler
+    logMessage.setFormatter(logFormat)
+    # Add log message handler to logger
+    logger.addHandler(logMessage) 
+
+    return logger, logMessage               
+# End of set logging function
+
+
+# Start of send email function
+def sendEmail(message):
+    # Send an email
+    arcpy.AddMessage("Sending email...")
+    # Server and port information
+    smtpServer = smtplib.SMTP("smtp.gmail.com",587) 
+    smtpServer.ehlo()
+    smtpServer.starttls() 
+    smtpServer.ehlo
+    # Login with sender email address and password
+    smtpServer.login(emailUser, emailPassword)
+    # Email content
+    header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
+    body = header + '\n' + emailMessage + '\n' + '\n' + message
+    # Send the email and close the connection
+    smtpServer.sendmail(emailUser, emailTo, body)    
+# End of send email function
+
 
 # This test allows the script to be used from the operating
 # system command prompt (stand-alone), in a Python IDE, 
@@ -154,5 +179,11 @@ if __name__ == '__main__':
     # Arguments are optional - If running from ArcGIS Desktop tool, parameters will be loaded into *argv
     argv = tuple(arcpy.GetParameterAsText(i)
         for i in range(arcpy.GetArgumentCount()))
+    # Logging
+    if (enableLogging == "true"):
+        # Setup logging
+        logger, logMessage = setLogging(logFile)
+        # Log start of process
+        logger.info("Process started.")            
     mainFunction(*argv)
-    
+      

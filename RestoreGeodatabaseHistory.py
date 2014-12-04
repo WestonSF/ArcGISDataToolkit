@@ -4,7 +4,7 @@
 #             loading in the orphaned archived dataset records in a SQL Server database.      
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    06/08/2014
-# Last Updated:    31/10/2014
+# Last Updated:    04/12/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.2+
 # Python Version:   2.7
@@ -21,8 +21,8 @@ import arcpy
 arcpy.env.overwriteOutput = True
 
 # Set global variables
-enableLogging = "true" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = "E:\Data\Tools & Scripts\ArcGIS Data Toolkit\Logs\RestoreGeodatabaseHistory.log" # os.path.join(os.path.dirname(__file__), "Example.log")
+enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
 sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
@@ -91,7 +91,7 @@ def mainFunction(geodatabase): # Get parameters from ArcGIS Desktop tool by sepe
                         arcpy.AddField_management(baseDataset, "GUID", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
                         arcpy.AddField_management(baseDataset + "_H", "GUID", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
                         arcpy.CalculateField_management(baseDataset + "_H", "GUID", "CalcGUID()", "PYTHON_9.3", "def CalcGUID():\\n   import uuid\\n   return '{' + str(uuid.uuid4()).upper() + '}'")
-                        arcpy.Select_analysis(baseDataset + "_H", "in_memory\\currentRecords", "GDB_TO_DATE = '9999-12-31 23:59:59'")
+                        arcpy.Select_analysis(baseDataset + "_H", "in_memory\\currentRecords", "GDB_TO_DATE >= '9999-12-31 00:00:00'")
                         arcpy.Append_management("in_memory\\currentRecords", baseDataset, "NO_TEST", "", "")
 
                         # Create a copy of the base dataset
@@ -109,7 +109,7 @@ def mainFunction(geodatabase): # Get parameters from ArcGIS Desktop tool by sepe
                         arcpy.AddField_management(baseDataset, "GUID", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
                         arcpy.AddField_management(baseDataset + "_H", "GUID", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
                         arcpy.CalculateField_management(baseDataset + "_H", "GUID", "CalcGUID()", "PYTHON_9.3", "def CalcGUID():\\n   import uuid\\n   return '{' + str(uuid.uuid4()).upper() + '}'")
-                        arcpy.TableSelect_analysis(baseDataset + "_H", "in_memory\\currentRecords", "GDB_TO_DATE = '9999-12-31 23:59:59'")
+                        arcpy.TableSelect_analysis(baseDataset + "_H", "in_memory\\currentRecords", "GDB_TO_DATE >= '9999-12-31 00:00:00'")
                         arcpy.Append_management("in_memory\\currentRecords", baseDataset, "NO_TEST", "", "")
                        
                         # Create a copy of the base dataset                        
@@ -301,4 +301,3 @@ if __name__ == '__main__':
     argv = tuple(arcpy.GetParameterAsText(i)
         for i in range(arcpy.GetArgumentCount()))
     mainFunction(*argv)
-    
