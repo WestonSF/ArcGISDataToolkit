@@ -16,6 +16,7 @@ import sys
 import logging
 import smtplib
 import arcpy
+import csv
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -32,7 +33,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(mapInfoFolder,geodatabase): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(mapInfoFolder,geodatabase,notIncludeConfigFile,renameConfigFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # --------------------------------------- Start of code --------------------------------------- #
 
@@ -73,28 +74,134 @@ def mainFunction(mapInfoFolder,geodatabase): # Get parameters from ArcGIS Deskto
                     arcpy.env.workspace = os.path.join(arcpy.env.scratchFolder, "Data.gdb")
                     featureClassList = arcpy.ListFeatureClasses()
                     # If data imported
-                    if (featureClassList):                   
+                    if (featureClassList):
                         # Loop through the list of feature classes
+                        count = 0
                         for featureClass in featureClassList:
                             desc = arcpy.Describe(featureClass)
+                            datasetRemoved = False
 
-                            copyDataset = True
-                            # Don't include datasets with "text" in name
-                            if "text" in str(desc.name):
-                                arcpy.AddWarning("Not importing text dataset - " + desc.name + "...")
-                                copyDataset = False
-                                
                             # Get a count for the dataset
                             rowCount = arcpy.GetCount_management(featureClass)
-                            # Copy over datasets with data
-                            if (rowCount == 0):
+                            if (rowCount == 0) and (datasetRemoved == False):
                                 arcpy.AddWarning("Not importing dataset with no records - " + desc.name + "...")
-                                copyDataset = False
+                                arcpy.Delete_management(featureClass, "FeatureClass")
+                                datasetRemoved = True
 
+                            # Don't include datasets with "text" in name
+                            if ("text" in str(desc.name)) and (datasetRemoved == False):
+                                arcpy.AddWarning("Not importing text dataset - " + desc.name + "...")
+                                arcpy.Delete_management(featureClass, "FeatureClass")
+                                datasetRemoved = True
+
+                            # Remove polygon from feature class name
+                            if (("_polygon" in str(desc.name)) and (datasetRemoved == False)):
+                                datasetName = desc.catalogPath
+                                newDatasetName = datasetName.replace("_polygon", "");
+
+                                renameDataset = True
+                                # If already been renamed    
+                                if arcpy.Exists(newDatasetName):
+                                    renameDataset = False
+                                    
+                                if (renameDataset == True):                                     
+                                    # Rename feature class
+                                    arcpy.AddMessage("Removing polygon from feature class name...")                           
+                                    arcpy.Rename_management(datasetName, newDatasetName, "FeatureClass")
+
+                            # Remove point from feature class name
+                            if (("_point" in str(desc.name)) and (datasetRemoved == False)):
+                                datasetName = desc.catalogPath
+                                newDatasetName = datasetName.replace("_point", "");
+
+                                renameDataset = True
+                                # If already been renamed    
+                                if arcpy.Exists(newDatasetName):
+                                    renameDataset = False
+
+                                if (renameDataset == True):                                    
+                                    # Rename feature class
+                                    arcpy.AddMessage("Removing point from feature class name...")                           
+                                    arcpy.Rename_management(datasetName, newDatasetName, "FeatureClass")
+                                
+                            # Remove line from feature class name
+                            if (("_line" in str(desc.name)) and (datasetRemoved == False)):
+                                datasetName = desc.catalogPath
+                                newDatasetName = datasetName.replace("_line", "");
+
+                                renameDataset = True
+                                # If already been renamed    
+                                if arcpy.Exists(newDatasetName):
+                                    renameDataset = False
+
+                                if (renameDataset == True):                                     
+                                    # Rename feature class
+                                    arcpy.AddMessage("Removing line from feature class name...")                           
+                                    arcpy.Rename_management(datasetName, newDatasetName, "FeatureClass")
+                                
+                            count = count + 1                                
+                        
+                        # Loop through the list of feature classes
+                        featureClassList = arcpy.ListFeatureClasses()
+                        for featureClass in featureClassList:
+                            copyDataset = True
+                            desc = arcpy.Describe(featureClass)
+
+                            # If configuration provided
+                            if (notIncludeConfigFile):
+                                # Set CSV delimiter                         
+                                csvDelimiter = ","
+
+                                # Look through configuration file to see if any datasets in there to not include
+                                # Open the CSV file
+                                with open(notIncludeConfigFile, 'rb') as csvFile:
+                                    # Read the CSV file
+                                    rows = csv.reader(csvFile, delimiter=csvDelimiter)
+
+                                    # For each row in the CSV
+                                    count = 0
+                                    for row in rows:
+                                        # Ignore the first line containing headers
+                                        if (count > 0):
+                                            # Get the name of the dataset to not include
+                                            datasetNotInclude = row[0]
+
+                                            # If the current feature class is in the list
+                                            if ((desc.name).lower() == datasetNotInclude.lower()):
+                                                arcpy.AddWarning("Not including dataset - " + desc.name + "...")
+                                                copyDataset = False
+                                        count = count + 1
+                            
+                                # Look through configuration file to see if any datasets in there to rename
+                                # Open the CSV file
+                                with open(renameConfigFile, 'rb') as csvFile:
+                                    # Read the CSV file
+                                    rows = csv.reader(csvFile, delimiter=csvDelimiter)
+
+                                    # For each row in the CSV
+                                    count = 0
+                                    for row in rows:
+                                        # Ignore the first line containing headers
+                                        if (count > 0):
+                                            # Get the name of the dataset to rename
+                                            datasetRename = row[0]
+                                            # Name to change dataset to
+                                            datasetRenameTo = row[1]
+                                            
+                                            # If the current feature class is in the list
+                                            if ((desc.name).lower() == datasetRename.lower()):
+                                                datasetName = desc.catalogPath
+                                                newDatasetName = datasetName.replace(datasetRename, datasetRenameTo);
+                                                featureClass = newDatasetName
+                                                arcpy.AddWarning("Renaming " + desc.name + " to " + datasetRenameTo + "...")
+                                                arcpy.Rename_management(datasetName, newDatasetName, "FeatureClass")
+                                                desc = arcpy.Describe(featureClass)
+                                        count = count + 1
+                                        
                             # If can continue with copy
                             if (copyDataset == True):                                  
                                 # Copy in the dataset to the geodatabase
-                                arcpy.CopyFeatures_management(featureClass, os.path.join(geodatabase, featureClass))
+                                arcpy.CopyFeatures_management(featureClass, os.path.join(geodatabase, desc.name))
                     else:
                        arcpy.AddWarning("No datasets to import...")
 
