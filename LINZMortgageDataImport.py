@@ -1,12 +1,11 @@
 #-------------------------------------------------------------
 # Name:       LINZ Mortgage Data Import
-# Purpose:    Imports LINZ encumbrance data, cleans it up and pushes into feature class
-#             format with bank mortgage is with.
+# Purpose:    Creates a mortgage feature class based of LINZ parcels and encumbrance data.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    25/04/2014
-# Last Updated:    25/04/2014
+# Last Updated:    19/12/2014
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.1/10.2
+# ArcGIS Version:   10.1+
 # Python Version:   2.7
 #--------------------------------
 
@@ -16,7 +15,6 @@ import sys
 import logging
 import smtplib
 import arcpy
-import xml.etree.ElementTree as ET
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -30,20 +28,50 @@ emailUser = ""
 emailPassword = ""
 emailSubject = ""
 emailMessage = ""
+enableProxy = "false"
+requestProtocol = "http" # http or https
+proxyURL = ""
 output = None
 
 # Start of main function
-def mainFunction(): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,mortgageFeatureClass): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
-        # Logging
-        if (enableLogging == "true"):
-            # Setup logging
-            logger, logMessage = setLogging(logFile)
-            # Log start of process
-            logger.info("Process started.")
-            
         # --------------------------------------- Start of code --------------------------------------- #
 
+        # Select out mortgage data
+        arcpy.AddMessage("Extracting mortgage data...")
+        arcpy.TableSelect_analysis(encumbranceTable, os.path.join(arcpy.env.scratchGDB, "Mortgage"), "instrument_type = 'Mortgage'")
+        arcpy.TableSelect_analysis(parcelTitleMatchTable, os.path.join(arcpy.env.scratchGDB, "ParcelTitleMatch"), "")
+        # Select parcel data
+        arcpy.Select_analysis(parcelFeatureClass, os.path.join(arcpy.env.scratchGDB, "Parcel"), "")
+        
+        # Select most recent mortgage record for each title
+        arcpy.AddMessage("Getting the most recent mortgage records...")
+        # Add unique ID
+        arcpy.AddField_management(os.path.join(arcpy.env.scratchGDB, "Mortgage"), "FullID", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
+        arcpy.CalculateField_management(os.path.join(arcpy.env.scratchGDB, "Mortgage"), "FullID", "!title_no! + \" \" + !instrument_lodged_datetime!", "PYTHON_9.3", "")        
+        arcpy.Statistics_analysis(os.path.join(arcpy.env.scratchGDB, "Mortgage"), os.path.join(arcpy.env.scratchGDB, "MortgageRecent"), "instrument_lodged_datetime MAX", "title_no")
+        # Add unique ID
+        arcpy.AddField_management(os.path.join(arcpy.env.scratchGDB, "MortgageRecent"), "FullID", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
+        arcpy.CalculateField_management(os.path.join(arcpy.env.scratchGDB, "MortgageRecent"), "FullID", "!title_no! + \" \" + !MAX_instrument_lodged_datetime!", "PYTHON_9.3", "")
+        # Join on description text
+        arcpy.JoinField_management(os.path.join(arcpy.env.scratchGDB, "MortgageRecent"), "FullID", os.path.join(arcpy.env.scratchGDB, "Mortgage"), "FullID", "memorial_text")
+
+        arcpy.AddMessage("Creating mortgage feature class...")
+        # Join parcel and title data
+        arcpy.MakeQueryTable_management(os.path.join(arcpy.env.scratchGDB, "Parcel") + ";" + os.path.join(arcpy.env.scratchGDB, "ParcelTitleMatch"), "ParcelTitlesLayer", "USE_KEY_FIELDS", "", "", "Parcel.id = ParcelTitleMatch.par_id")
+        arcpy.Select_analysis("ParcelTitlesLayer", os.path.join(arcpy.env.scratchGDB, "ParcelTitles"), "")
+        # Join parcel and mortgage data
+        arcpy.MakeQueryTable_management(os.path.join(arcpy.env.scratchGDB, "ParcelTitles") + ";" + os.path.join(arcpy.env.scratchGDB, "MortgageRecent"), "ParcelTitlesMortgageLayer", "USE_KEY_FIELDS", "", "", "ParcelTitles.ttl_title_no = MortgageRecent.title_no")
+        arcpy.Select_analysis("ParcelTitlesMortgageLayer", mortgageFeatureClass, "")
+
+        # Cleaning up fields
+        arcpy.AddMessage("Cleaning up fields...")
+        arcpy.AddField_management(mortgageFeatureClass, "mortgage_provider", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
+        arcpy.CalculateField_management(mortgageFeatureClass, "mortgage_provider", "changeValue(!memorial_text!)", "PYTHON_9.3", "def changeValue(var):\\n  if \"ANZ\" in var:\\n    return \"ANZ\"\\n  if \"National Bank\" in var:\\n    return \"ANZ\"\\n  if \"Westpac\" in var:\\n    return \"Westpac\"\\n  if \"ASB\" in var:\\n    return \"ASB\"\\n  if \"Bank of New Zealand\" in var:\\n    return \"BNZ\"\\n  if \"Kiwibank\" in var:\\n    return \"Kiwibank\"\\n  if \"TSB\" in var:\\n    return \"TSB\"\\n  if \"Rabobank\" in var:\\n    return \"Rabobank\"\\n  if \"Co-operative Bank\" in var:\\n    return \"Co-operative Bank\"\\n  if \"PSIS\" in var:\\n    return \"Co-operative Bank\"\\n  if \"New Zealand Home Lending\" in var:\\n    return \"New Zealand Home Loans\"\\n  if \"AMP\" in var:\\n    return \"AMP\"\\n  if \"Home Mortgage Company\" in var:\\n    return \"Home Mortgage Company\"\\n  if \"Mortgage Holding Trust\" in var:\\n    return \"Mortgage Holding Trust\"\\n  if \"PGG Wrightson\" in var:\\n    return \"PGG Wrightson\"\\n  if \"Countrywide\" in var:\\n    return \"Countrywide\"\\n  if \"Sovereign\" in var:\\n    return \"Sovereign\"\\n  else:\\n    return \"Other\"\\n")
+        arcpy.DeleteField_management(mortgageFeatureClass, "id;appellation;affected_surveys;parcel_intent;topology_type;statutory_actions;titles;survey_area;calc_area;OBJECTID_1;id_1;ttl_title_no;source;OBJECTID_12;FREQUENCY;FullID")
+        arcpy.AlterField_management(mortgageFeatureClass, "MAX_instrument_lodged_datetime", "date_lodged", "", "DATE", "8", "NULLABLE", "false")
+        arcpy.AlterField_management(mortgageFeatureClass, "memorial_text", "description", "", "TEXT", "18000", "NULLABLE", "false")
 
         # --------------------------------------- End of code --------------------------------------- #  
             
@@ -73,7 +101,9 @@ def mainFunction(): # Get parameters from ArcGIS Desktop tool by seperating by c
         # Logging
         if (enableLogging == "true"):
             # Log error          
-            logger.error(errorMessage)                 
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
             # Remove file handler and close log file
             logging.FileHandler.close(logMessage)
             logger.removeHandler(logMessage)
@@ -86,14 +116,16 @@ def mainFunction(): # Get parameters from ArcGIS Desktop tool by seperating by c
         # Build and show the error message
         for i in range(len(e.args)):
             if (i == 0):
-                errorMessage = str(e.args[i])
+                errorMessage = unicode(e.args[i]).encode('utf-8')
             else:
-                errorMessage = errorMessage + " " + str(e.args[i])
+                errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
         arcpy.AddError(errorMessage)              
         # Logging
         if (enableLogging == "true"):
             # Log error            
-            logger.error(errorMessage)               
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
             # Remove file handler and close log file
             logging.FileHandler.close(logMessage)
             logger.removeHandler(logMessage)
@@ -102,7 +134,7 @@ def mainFunction(): # Get parameters from ArcGIS Desktop tool by seperating by c
             sendEmail(errorMessage)            
 # End of main function
 
-                    
+
 # Start of set logging function
 def setLogging(logFile):
     # Create a logger
@@ -148,5 +180,18 @@ if __name__ == '__main__':
     # Arguments are optional - If running from ArcGIS Desktop tool, parameters will be loaded into *argv
     argv = tuple(arcpy.GetParameterAsText(i)
         for i in range(arcpy.GetArgumentCount()))
+    # Logging
+    if (enableLogging == "true"):
+        # Setup logging
+        logger, logMessage = setLogging(logFile)
+        # Log start of process
+        logger.info("Process started.")
+    # Setup the use of a proxy for requests
+    if (enableProxy == "true"):
+        # Setup the proxy
+        proxy = urllib2.ProxyHandler({requestProtocol : proxyURL})
+        openURL = urllib2.build_opener(proxy)
+        # Install the proxy
+        urllib2.install_opener(openURL)
     mainFunction(*argv)
     

@@ -90,9 +90,8 @@ Exports field aliases for datasets specified to a CSV file. Can also use a confi
 #### LINZ Data Service Download
 Downloads the data  from the LINZ data service by either downloading the entire dataset for WFS or downloading the changeset and updating the data.
 
-#### LINZ Mortgage Data Import (IN DEVELPOMENT)
-Imports LINZ encumbrance data, cleans it up and pushes into feature class
- format with bank mortgage is with.
+#### LINZ Mortgage Data Import
+Creates a mortgage feature class based of LINZ parcels and encumbrance data.
 
 #### MapInfo Data Import
 Imports all MapInfo data to a selected geodatabase. Takes a folder as input and will find all MapInfo files in this folder and subfolders. Requires data interoperability extension.
