@@ -1,9 +1,9 @@
 #-------------------------------------------------------------
 # Name:       LINZ Mortgage Data Import
-# Purpose:    Creates a mortgage feature class based of LINZ parcels and encumbrance data.
+# Purpose:    Creates a mortgage feature class by parcel and suburb based of LINZ parcels and encumbrance data.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    25/04/2014
-# Last Updated:    19/12/2014
+# Last Updated:    20/12/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1+
 # Python Version:   2.7
@@ -34,9 +34,12 @@ proxyURL = ""
 output = None
 
 # Start of main function
-def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,mortgageFeatureClass): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,suburbsFeatureClass,mortgageFeatureClass,mortgageSuburbsFeatureClass): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # --------------------------------------- Start of code --------------------------------------- #
+
+        # Set the banks
+        banks = ["ANZ","Westpac","BNZ","ASB","Kiwibank","Mortgage Holding Trust","Co-operative Bank","Rabobank","TSB","New Zealand Home Loans","Countrywide","AMP","Home Mortgage Company","PGG Wrightson","Sovereign","Other"]
 
         # Select out mortgage data
         arcpy.AddMessage("Extracting mortgage data...")
@@ -69,10 +72,54 @@ def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,mortg
         arcpy.AddMessage("Cleaning up fields...")
         arcpy.AddField_management(mortgageFeatureClass, "mortgage_provider", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
         arcpy.CalculateField_management(mortgageFeatureClass, "mortgage_provider", "changeValue(!memorial_text!)", "PYTHON_9.3", "def changeValue(var):\\n  if \"ANZ\" in var:\\n    return \"ANZ\"\\n  if \"National Bank\" in var:\\n    return \"ANZ\"\\n  if \"Westpac\" in var:\\n    return \"Westpac\"\\n  if \"ASB\" in var:\\n    return \"ASB\"\\n  if \"Bank of New Zealand\" in var:\\n    return \"BNZ\"\\n  if \"Kiwibank\" in var:\\n    return \"Kiwibank\"\\n  if \"TSB\" in var:\\n    return \"TSB\"\\n  if \"Rabobank\" in var:\\n    return \"Rabobank\"\\n  if \"Co-operative Bank\" in var:\\n    return \"Co-operative Bank\"\\n  if \"PSIS\" in var:\\n    return \"Co-operative Bank\"\\n  if \"New Zealand Home Lending\" in var:\\n    return \"New Zealand Home Loans\"\\n  if \"AMP\" in var:\\n    return \"AMP\"\\n  if \"Home Mortgage Company\" in var:\\n    return \"Home Mortgage Company\"\\n  if \"Mortgage Holding Trust\" in var:\\n    return \"Mortgage Holding Trust\"\\n  if \"PGG Wrightson\" in var:\\n    return \"PGG Wrightson\"\\n  if \"Countrywide\" in var:\\n    return \"Countrywide\"\\n  if \"Sovereign\" in var:\\n    return \"Sovereign\"\\n  else:\\n    return \"Other\"\\n")
-        arcpy.DeleteField_management(mortgageFeatureClass, "id;appellation;affected_surveys;parcel_intent;topology_type;statutory_actions;titles;survey_area;calc_area;OBJECTID_1;id_1;ttl_title_no;source;OBJECTID_12;FREQUENCY;FullID")
+        arcpy.DeleteField_management(mortgageFeatureClass, "id;appellation;affected_surveys;parcel_intent;topology_type;statutory_actions;titles;survey_area;OBJECTID_1;id_1;ttl_title_no;source;OBJECTID_12;FREQUENCY;FullID")
         arcpy.AlterField_management(mortgageFeatureClass, "MAX_instrument_lodged_datetime", "date_lodged", "", "DATE", "8", "NULLABLE", "false")
         arcpy.AlterField_management(mortgageFeatureClass, "memorial_text", "description", "", "TEXT", "18000", "NULLABLE", "false")
+        arcpy.AddField_management(mortgageFeatureClass, "land_area", "DOUBLE", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
+        arcpy.CalculateField_management(mortgageFeatureClass, "land_area", "!SHAPE_Area!", "PYTHON_9.3", "")        
 
+        # Spatially join suburb info
+        arcpy.AddMessage("Analysing mortgages by suburb...")
+        arcpy.SpatialJoin_analysis(mortgageFeatureClass, suburbsFeatureClass, os.path.join(arcpy.env.scratchGDB, "MortgageSuburbs"), "JOIN_ONE_TO_ONE", "KEEP_ALL", "", "INTERSECT", "", "")
+        # Summary stats for suburbs
+        arcpy.Statistics_analysis(os.path.join(arcpy.env.scratchGDB, "MortgageSuburbs"), os.path.join(arcpy.env.scratchGDB, "MortgageSuburbsStats"), "mortgage_provider COUNT", "SUBURB_4THORDER;mortgage_provider")
+
+        # Add the banks count fields
+        for bank in banks:
+            arcpy.AddField_management(os.path.join(arcpy.env.scratchGDB, "MortgageSuburbsStats"), bank.replace(" ", "_").replace("-", "_"), "LONG", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
+            arcpy.CalculateField_management(os.path.join(arcpy.env.scratchGDB, "MortgageSuburbsStats"), bank.replace(" ", "_").replace("-", "_"), "0", "PYTHON_9.3", "")
+
+        # Get the banks fields
+        for count,value in enumerate(banks):
+            banks[count] = value.replace(" ", "_").replace("-", "_")
+            
+        fields = ["SUBURB_4THORDER","mortgage_provider","FREQUENCY"] + banks
+        with arcpy.da.UpdateCursor(os.path.join(arcpy.env.scratchGDB, "MortgageSuburbsStats"), fields) as cursor:
+            # For each row
+            for row in cursor:
+                suburb = row[0]
+                mortgageProvider = row[1]
+                mortgageProvider = mortgageProvider.replace(" ", "_").replace("-", "_")
+                count = row[2]
+
+                # Update the mortgage provider row with its count
+                row[fields.index(mortgageProvider)] = count
+                cursor.updateRow(row)
+
+        # Dissolve the stats
+        arcpy.Statistics_analysis(os.path.join(arcpy.env.scratchGDB, "MortgageSuburbsStats"), os.path.join(arcpy.env.scratchGDB, "MortgageSuburbsStatsDissolved"), "FREQUENCY SUM;ANZ SUM;Westpac SUM;BNZ SUM;ASB SUM;Kiwibank SUM;Mortgage_Holding_Trust SUM;Co_operative_Bank SUM;Rabobank SUM;TSB SUM;New_Zealand_Home_Loans SUM;Countrywide SUM;AMP SUM;Home_Mortgage_Company SUM;PGG_Wrightson SUM;Sovereign SUM;Other SUM", "SUBURB_4THORDER")
+
+        # Create mortgage suburbs feature class
+        arcpy.AddMessage("Creating mortgage suburbs feature class...")
+        arcpy.Select_analysis(suburbsFeatureClass, mortgageSuburbsFeatureClass, "")
+        arcpy.AddField_management(mortgageSuburbsFeatureClass, "land_area", "DOUBLE", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
+        arcpy.CalculateField_management(mortgageSuburbsFeatureClass, "land_area", "!SHAPE_Area!", "PYTHON_9.3", "")                
+        # Join on mortgages suburb data
+        arcpy.JoinField_management(mortgageSuburbsFeatureClass, "SUBURB_4THORDER", os.path.join(arcpy.env.scratchGDB, "MortgageSuburbsStatsDissolved"), "SUBURB_4THORDER", "")
+        arcpy.DeleteField_management(mortgageSuburbsFeatureClass, "FREQUENCY;SUBURB_1STORDER;SUBURB_2NDORDER;SUBURB_3RDORDER")
+        arcpy.AlterField_management(mortgageSuburbsFeatureClass, "SUBURB_4THORDER", "Suburb", "", "TEXT", "60", "NULLABLE", "false")
+        arcpy.AlterField_management(mortgageSuburbsFeatureClass, "SUM_FREQUENCY", "SUM_ALL", "", "DOUBLE", "8", "NULLABLE", "false")
+     
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
