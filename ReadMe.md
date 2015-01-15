@@ -96,6 +96,15 @@ Creates a mortgage feature class by parcel and suburb based of LINZ parcels and 
 #### MapInfo Data Import
 Imports all MapInfo data to a selected geodatabase. Takes a folder as input and will find all MapInfo files in this folder and subfolders. Requires data interoperability extension.
 
+#### Stats Property Data Import
+Imports data from Census NZ stats relating to property and aggregates this data by meshblock and suburb.
+
+#### Summit Forests Data Clean
+Cleans the Summit Forests GIS data by merging datasets and fixing up any issues.
+
+#### Geodatabase Documentation
+Documents a geodatabase by exporting feature class, table and domain information to a CSV file.
+
 
 ## Features
 
@@ -182,7 +191,7 @@ Anyone and everyone is welcome to contribute.
 
 
 ## Licensing
-Copyright 2014 - Shaun Weston
+Copyright 2015 - Shaun Weston
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
