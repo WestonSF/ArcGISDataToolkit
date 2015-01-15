@@ -4,7 +4,7 @@
 #             and converting to a feature class.        
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    14/08/2013
-# Last Updated:    13/11/2014
+# Last Updated:    16/01/2015
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1+
 # Python Version:   2.7
@@ -93,9 +93,15 @@ def mainFunction(mapService,featureClass): # Get parameters from ArcGIS Desktop 
 
                     # Get the field names and values
                     fields = ["SHAPE@"]
-                    values = [Geometry]                        
+                    values = [Geometry]
+                    
                     for key, value in mapServiceQuery2JSONData["features"][count]["attributes"].iteritems():
                         if key.lower() <> "objectid":
+                            # Replace invalid characters
+                            if "(" in key:
+                                key = key.replace("(", "_")
+                            if ")" in key:
+                                key = key.replace(")", "_")
                             fields.append(key)
                             values.append(value)                                
                       
