@@ -17,6 +17,8 @@ import logging
 import smtplib
 import arcpy
 import csv
+import xml.etree.ElementTree as ET
+from xml.etree.ElementTree import ElementTree
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -58,9 +60,9 @@ def mainFunction(geodatabase,outputFolder): # Get parameters from ArcGIS Desktop
         domainsWriter = csv.writer(domainsCSVFile, delimiter=",")
     
         # Add in header information   
-        datasetsHeaderRow = ["Name","Dataset Type","Geometry","Spatial Reference","Versioned","Archived"]
+        datasetsHeaderRow = ["Name","Description","Dataset Type","Geometry","Spatial Reference","Versioned","Archived"]
         domainsHeaderRow = ["Name","Description","Domain Type", "Field Type"]
-        singleDatasetHeaderRow = ["Name","Alias Name","Type","Domain","Is Nullable","Is Editable","Length"]
+        singleDatasetHeaderRow = ["Field Name","Field Alias Name","Type","Domain","Is Nullable","Is Editable","Length"]
         singleDomainHeaderRow = ["Code","Description"]
         datasetsWriter.writerow(datasetsHeaderRow)
         domainsWriter.writerow(domainsHeaderRow)
@@ -93,9 +95,35 @@ def mainFunction(geodatabase,outputFolder): # Get parameters from ArcGIS Desktop
                 archiveEnabled = descDataset.isArchived
             else:
                 archiveEnabled = "False"
+
+            # Set the directory for the translator
+            installDirectory = arcpy.GetInstallInfo("desktop")["InstallDir"]
+            # Use the FGDC to get into clean xml format
+            translator = installDirectory + "Metadata/Translator/ARCGIS2FGDC.xml"
+            # Export the metadata for the dataset
+            arcpy.ExportMetadata_conversion(dataset, translator, os.path.join(arcpy.env.scratchFolder, "Metadata.xml"))
+            # Convert file to xml
+            tree = ET.ElementTree(file=os.path.join(arcpy.env.scratchFolder, "Metadata.xml"))   
+            # Import and reference the xml file
+            root = tree.getroot()
+
+            datasetDescription = "No Description"
+            # Look at the metadata
+            description = root.find("idinfo/descript")
+            # If there are description values
+            if description:
+                # Look at the description xml element
+                for child in root.find("idinfo/descript"):
+                    # Get purpose
+                    if (child.tag.lower() == "purpose"):
+                        datasetDescription = child.text                
+
+            # If any variables are none
+            if (datasetDescription is None):
+                datasetDescription = "No Description"
                 
             # Write in dataset information
-            row = [datasetName,dataType,shapeType,spatialReference,versionedEnabled,archiveEnabled]
+            row = [datasetName,datasetDescription,dataType,shapeType,spatialReference,versionedEnabled,archiveEnabled]
             datasetsWriter.writerow(row)
 
             with open(os.path.join(outputFolder, "Dataset_" + datasetName + ".csv"), 'wb') as file:
