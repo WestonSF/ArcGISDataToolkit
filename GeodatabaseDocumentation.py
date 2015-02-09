@@ -4,7 +4,7 @@
 #             a CSV file.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    15/01/2015
-# Last Updated:    15/01/2015
+# Last Updated:    09/02/2015
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.3+
 # Python Version:   2.7
@@ -54,19 +54,23 @@ def mainFunction(geodatabase,outputFolder): # Get parameters from ArcGIS Desktop
 
         # Create the CSV files and setup headers
         datasetsCSVFile = open(os.path.join(outputFolder, descWorkspace.baseName + "_Datasets.csv"), 'wb')
+        relationshipClassesCSVFile = open(os.path.join(outputFolder, descWorkspace.baseName + "_RelationshipClasses.csv"), 'wb')
         domainsCSVFile = open(os.path.join(outputFolder, descWorkspace.baseName + "_Domains.csv"), 'wb')
 
         datasetsWriter = csv.writer(datasetsCSVFile, delimiter=",")
+        relationshipClassesWriter = csv.writer(relationshipClassesCSVFile, delimiter=",")
         domainsWriter = csv.writer(domainsCSVFile, delimiter=",")
     
         # Add in header information   
         datasetsHeaderRow = ["Name","Description","Dataset Type","Geometry","Spatial Reference","Versioned","Archived"]
+        relationshipClassesHeaderRow = ["Name","Description","Cardinality","Origin Feature Class","Destination Feature Class"]
         domainsHeaderRow = ["Name","Description","Domain Type", "Field Type"]
         singleDatasetHeaderRow = ["Field Name","Field Alias Name","Type","Domain","Is Nullable","Is Editable","Length"]
         singleDomainHeaderRow = ["Code","Description"]
         datasetsWriter.writerow(datasetsHeaderRow)
+        relationshipClassesWriter.writerow(relationshipClassesHeaderRow)
         domainsWriter.writerow(domainsHeaderRow)
-
+                
         # For each dataset
         for dataset in datasetList:
             # Describe the dataset
@@ -99,7 +103,7 @@ def mainFunction(geodatabase,outputFolder): # Get parameters from ArcGIS Desktop
             # Set the directory for the translator
             installDirectory = arcpy.GetInstallInfo("desktop")["InstallDir"]
             # Use the FGDC to get into clean xml format
-            translator = installDirectory + "Metadata/Translator/ARCGIS2FGDC.xml"
+            translator = installDirectory + "Metadata\Translator\ARCGIS2FGDC.xml"
             # Export the metadata for the dataset
             arcpy.ExportMetadata_conversion(dataset, translator, os.path.join(arcpy.env.scratchFolder, "Metadata.xml"))
             # Convert file to xml
@@ -162,6 +166,47 @@ def mainFunction(geodatabase,outputFolder): # Get parameters from ArcGIS Desktop
                     domainDescription = codedValues[codedValue]
                     domainInfo = [domainValue,domainDescription]
                     singleDomainWriter.writerow(domainInfo)
+
+        # Get a list of relationship classes in the geodatabase
+        # For each relationship class
+        for dataset in arcpy.Describe(geodatabase).children:
+            if dataset.datatype == "RelationshipClass":    
+                rcName = dataset.name
+                rcCardinality = dataset.cardinality
+                rcOriginClassNames = dataset.originClassNames[0]
+                rcDestinationClassNames = dataset.destinationClassNames[0]
+
+                # Set the directory for the translator
+                installDirectory = arcpy.GetInstallInfo("desktop")["InstallDir"]
+                # Use the FGDC to get into clean xml format
+                translator = installDirectory + "Metadata\Translator\ARCGIS2FGDC.xml"
+                # Export the metadata for the dataset
+                arcpy.ExportMetadata_conversion(dataset.catalogPath, translator, os.path.join(arcpy.env.scratchFolder, "Metadata.xml"))
+                # Convert file to xml
+                tree = ET.ElementTree(file=os.path.join(arcpy.env.scratchFolder, "Metadata.xml"))   
+                # Import and reference the xml file
+                root = tree.getroot()
+
+                rcDescription = "No Description"
+                # Look at the metadata
+                description = root.find("idinfo/descript")
+                # If there are description values
+                if description:
+                    # Look at the description xml element
+                    for child in root.find("idinfo/descript"):
+                        # Get purpose
+                        if (child.tag.lower() == "purpose"):
+                            rcDescription = child.text                
+
+                # If any variables are none
+                if (rcDescription is None):
+                    rcDescription = "No Description"
+
+                arcpy.AddMessage("Documenting relationship class - " + rcName + "...")  
+                
+                # Write in relationship class information
+                row = [rcName,rcDescription,rcCardinality,rcOriginClassNames,rcDestinationClassNames]
+                relationshipClassesWriter.writerow(row)
                 
         # --------------------------------------- End of code --------------------------------------- #  
             
