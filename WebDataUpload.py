@@ -5,7 +5,7 @@
 #             NOTE: If using ArcGIS 10.0 need to set scratch workspace as a folder.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    31/05/2013
-# Last Updated:    17/06/2014
+# Last Updated:    11/02/2015
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0+
 # Python Version:   2.6/2.7
@@ -34,18 +34,14 @@ emailUser = ""
 emailPassword = ""
 emailSubject = ""
 emailMessage = ""
+enableProxy = "false"
+requestProtocol = "http" # http or https
+proxyURL = ""
 output = None
 
 # Start of main function
 def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolder,ftpUsername,ftpPassword,gpService): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
-        # Logging
-        if (enableLogging == "true"):
-            # Setup logging
-            logger, logMessage = setLogging(logFile)
-            # Log start of process
-            logger.info("Process started.")
-
         # --------------------------------------- Start of code --------------------------------------- #
         # Get the arcgis version
         arcgisVersion = arcpy.GetInstallInfo()['Version']
@@ -109,9 +105,9 @@ def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolde
             zippedFolder = zipfile.ZipFile(zipFile, "w", allowZip64=True)
 
             # Zip up the geodatabase
-            root_len = len(os.path.abspath(str(fileFolder)))
+            root_len = len(os.path.abspath(str(tempFolder)))
             # For each of the directories in the folder
-            for root, dirs, files in os.walk(str(fileFolder)):
+            for root, dirs, files in os.walk(str(tempFolder)):
               archive_root = os.path.abspath(root)[root_len:]
               # For each file
               for f in files:
@@ -134,7 +130,7 @@ def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolde
         # Call geoprocessing service to update data on server
         arcpy.AddMessage("Updating data on server...")
         arcpy.ImportToolbox(gpService, "toolbox")
-        arcpy.DataUpdateFromZipSWDC_toolbox("Existing")
+        arcpy.DataUpdateFromZip_toolbox("Existing")
         
         # --------------------------------------- End of code --------------------------------------- #  
             
@@ -164,7 +160,9 @@ def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolde
         # Logging
         if (enableLogging == "true"):
             # Log error          
-            logger.error(errorMessage)                 
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
             # Remove file handler and close log file
             logging.FileHandler.close(logMessage)
             logger.removeHandler(logMessage)
@@ -177,14 +175,16 @@ def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolde
         # Build and show the error message
         for i in range(len(e.args)):
             if (i == 0):
-                errorMessage = str(e.args[i])
+                errorMessage = unicode(e.args[i]).encode('utf-8')
             else:
-                errorMessage = errorMessage + " " + str(e.args[i])
+                errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
         arcpy.AddError(errorMessage)              
         # Logging
         if (enableLogging == "true"):
             # Log error            
-            logger.error(errorMessage)               
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
             # Remove file handler and close log file
             logging.FileHandler.close(logMessage)
             logger.removeHandler(logMessage)
@@ -239,4 +239,17 @@ if __name__ == '__main__':
     # Arguments are optional - If running from ArcGIS Desktop tool, parameters will be loaded into *argv
     argv = tuple(arcpy.GetParameterAsText(i)
         for i in range(arcpy.GetArgumentCount()))
+    # Logging
+    if (enableLogging == "true"):
+        # Setup logging
+        logger, logMessage = setLogging(logFile)
+        # Log start of process
+        logger.info("Process started.")
+    # Setup the use of a proxy for requests
+    if (enableProxy == "true"):
+        # Setup the proxy
+        proxy = urllib2.ProxyHandler({requestProtocol : proxyURL})
+        openURL = urllib2.build_opener(proxy)
+        # Install the proxy
+        urllib2.install_opener(openURL)
     mainFunction(*argv)
