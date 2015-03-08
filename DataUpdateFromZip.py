@@ -10,7 +10,7 @@
 #             NOTE: If using ArcGIS 10.0 need to set scratch workspace as folder.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    31/05/2013
-# Last Updated:    14/07/2014
+# Last Updated:    09/03/2015
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0+
 # Python Version:   2.6/2.7
@@ -31,7 +31,7 @@ arcpy.env.overwriteOutput = True
 
 # Set global variables
 enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
+logFile = os.path.join(os.path.dirname(__file__), "Logs\DataUpdateFromZip.log") # os.path.join(os.path.dirname(__file__), "Example.log")
 sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
@@ -71,9 +71,11 @@ def mainFunction(updateFolder,updateMode,geodatabase): # Get parameters from Arc
         zip = zipfile.ZipFile(latestFile, mode="r")
         zip.extractall(str(tempFolder))
 
+        # Get the extracted gdb
+        extractedGDB = max(glob.iglob(str(tempFolder) + r"\*.gdb"), key=os.path.getmtime)   
         # Assign the geodatbase workspace and load in the datasets to the lists
-        arcpy.env.workspace = os.path.join(str(tempFolder), "Data.gdb")
-        featureclassList = arcpy.ListFeatureClasses()
+        arcpy.env.workspace = extractedGDB
+        featureclassList = arcpy.ListFeatureClasses()   
         tableList = arcpy.ListTables()       
 
         arcpy.AddMessage("Copying datasets...")        
@@ -145,7 +147,7 @@ def mainFunction(updateFolder,updateMode,geodatabase): # Get parameters from Arc
 
                         # Copy table into geodatabase using the same dataset name
                         arcpy.TableSelect_analysis(eachTable, os.path.join(geodatabase, describeDataset.name), "")
-                   
+        
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
