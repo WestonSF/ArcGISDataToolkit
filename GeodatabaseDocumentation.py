@@ -4,9 +4,9 @@
 #             a CSV file.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    15/01/2015
-# Last Updated:    09/02/2015
+# Last Updated:    10/03/2015
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.3+
+# ArcGIS Version:   10.2+
 # Python Version:   2.7
 #--------------------------------
 
@@ -90,12 +90,12 @@ def mainFunction(geodatabase,outputFolder): # Get parameters from ArcGIS Desktop
             else:
                 spatialReference = "Non-Spatial"
                 
-            if (workspaceType.lower() == "remotedatabase"):
+            if (descDataset.canVersion == True):
                 versionedEnabled = descDataset.isVersioned
             else:
                 versionedEnabled = "False"
                 
-            if (workspaceType.lower() == "remotedatabase"):
+            if (descDataset.canVersion == True):
                 archiveEnabled = descDataset.isArchived
             else:
                 archiveEnabled = "False"
