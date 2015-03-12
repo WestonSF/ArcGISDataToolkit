@@ -4,7 +4,7 @@
 #             and converting to a feature class.        
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    14/08/2013
-# Last Updated:    16/01/2015
+# Last Updated:    12/03/2015
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1+
 # Python Version:   2.7
@@ -49,19 +49,21 @@ def mainFunction(mapService,featureClass): # Get parameters from ArcGIS Desktop 
         arcpy.AddMessage("Querying the map service...")
         mapServiceQuery1 = mapService + "/query?where=1%3D1&returnIdsOnly=true&f=pjson"
         urlResponse = urllib.urlopen(mapServiceQuery1);
-        # Get json for the response
+        # Get json for the response - Object IDs
         mapServiceQuery1JSONData = json.loads(urlResponse.read())
+        objectIDs = mapServiceQuery1JSONData["objectIds"]
+        objectIDs.sort()
 
-        arcpy.AddMessage("Number of records in the map service - " + str(len(mapServiceQuery1JSONData["objectIds"])) + "...")       
+        arcpy.AddMessage("Number of records in the map service - " + str(len(objectIDs)) + "...")       
         maxRequests = 1000
         requestsMade = 0
 
         # For each record returned        
-        for i in range(len(mapServiceQuery1JSONData["objectIds"])):
+        for i in range(len(objectIDs)):
             # For every 1000th record
             if ((i % maxRequests) == 0):
                 # Create the query
-                startObjectID = int(mapServiceQuery1JSONData["objectIds"][i])
+                startObjectID = int(objectIDs[i])
                 endObjectID = startObjectID + 1000
                 serviceQuery = "OBJECTID >= " + str(startObjectID) + " AND OBJECTID < " + str(endObjectID)
 
@@ -70,47 +72,52 @@ def mainFunction(mapService,featureClass): # Get parameters from ArcGIS Desktop 
                 urlResponse = urllib.urlopen(mapServiceQuery2);
                 # Get json for feature returned
                 mapServiceQuery2JSONData = json.loads(urlResponse.read())
-                
+ 
                 # Get the geometry and create temporary feature class
                 arcpy.AddMessage("Converting JSON to feature class...")
                 count = 0
-                while (len(mapServiceQuery2JSONData["features"]) > count): 
+                while (len(mapServiceQuery2JSONData["features"]) > count):                
                     GeometryJSON = mapServiceQuery2JSONData["features"][count]["geometry"]
                     # Add spatial reference to geometry
                     SpatialReference = mapServiceQuery2JSONData["spatialReference"]["wkid"]
                     GeometryJSON["spatialReference"] = {'wkid' : SpatialReference}
                     Geometry = arcpy.AsShape(GeometryJSON, "True")
+
                     # If on the first record and first request
                     if ((count == 0) and (requestsMade == 0)):
                         # If it's the first request, create new feature class
                         arcpy.CopyFeatures_management(Geometry, featureClass)
+
+                        # Reset data
+                        arcpy.DeleteFeatures_management(featureClass)
                         
                         # Go through the attributes
                         for key, value in mapServiceQuery2JSONData["features"][count]["attributes"].iteritems():
-                            # Add new field
-                            if key.lower() <> "objectid":
-                                arcpy.AddField_management(featureClass, key, "TEXT", "", "", "5000")
-
+                            # Add new field - Don't include ArcGIS generated fields
+                            if ((key.lower() <> "objectid") and (key.lower() <> "shape.starea()") and (key.lower() <> "shape.stlength()") and (key.lower() <> "shape.area") and (key.lower() <> "shape.len")):
+                                arcpy.AddField_management(featureClass, key, "TEXT", "", "", "500")
+                    
                     # Get the field names and values
                     fields = ["SHAPE@"]
                     values = [Geometry]
                     
                     for key, value in mapServiceQuery2JSONData["features"][count]["attributes"].iteritems():
-                        if key.lower() <> "objectid":
+                        # Don't include ArcGIS generated fields
+                        if ((key.lower() <> "objectid") and (key.lower() <> "shape.starea()") and (key.lower() <> "shape.stlength()") and (key.lower() <> "shape.area") and (key.lower() <> "shape.len")):
                             # Replace invalid characters
                             if "(" in key:
                                 key = key.replace("(", "_")
                             if ")" in key:
                                 key = key.replace(")", "_")
                             fields.append(key)
-                            values.append(value)                                
-                      
-                    # Load it into existing feature class         
+                            values.append(value)
+
+                    # Load it into existing feature class
                     cursor = arcpy.da.InsertCursor(featureClass,fields)
                     cursor.insertRow(values)
 
                     count = count + 1
-                    arcpy.AddMessage("Loaded " + str(count+(requestsMade*1000)) + " of " + str(len(mapServiceQuery1JSONData["objectIds"])) + " features...")
+                    arcpy.AddMessage("Loaded " + str(count+(requestsMade*1000)) + " of " + str(len(objectIDs)) + " features...")
 
                 requestsMade = requestsMade + 1
         # --------------------------------------- End of code --------------------------------------- #  
