@@ -4,7 +4,7 @@
 #             and converting to a feature class.        
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    14/08/2013
-# Last Updated:    12/03/2015
+# Last Updated:    23/03/2015
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1+
 # Python Version:   2.7
@@ -76,13 +76,31 @@ def mainFunction(mapService,featureClass): # Get parameters from ArcGIS Desktop 
                 # Get the geometry and create temporary feature class
                 arcpy.AddMessage("Converting JSON to feature class...")
                 count = 0
-                while (len(mapServiceQuery2JSONData["features"]) > count):                
-                    GeometryJSON = mapServiceQuery2JSONData["features"][count]["geometry"]
-                    # Add spatial reference to geometry
-                    SpatialReference = mapServiceQuery2JSONData["spatialReference"]["wkid"]
-                    GeometryJSON["spatialReference"] = {'wkid' : SpatialReference}
+                while (len(mapServiceQuery2JSONData["features"]) > count):
+                    # If geometry found                  
+                    if "geometry" in mapServiceQuery2JSONData["features"][count]:
+                        GeometryJSON = mapServiceQuery2JSONData["features"][count]["geometry"]
+                        # Add spatial reference to geometry
+                        SpatialReference = mapServiceQuery2JSONData["spatialReference"]["wkid"]
+                        GeometryJSON["spatialReference"] = {'wkid' : SpatialReference}
+                    # Else feature layer
+                    else:
+                        mapServiceQuery3 = mapService + "/" + str(mapServiceQuery2JSONData["features"][count]["attributes"]["OBJECTID"]) + "?f=pjson"
+                        urlResponse = urllib.urlopen(mapServiceQuery3);
+                        # Get json for the response
+                        mapServiceQuery3JSONData = json.loads(urlResponse.read())
+                        # Add spatial reference to geometry
+                        GeometryJSON = mapServiceQuery3JSONData["feature"]["geometry"]
+                        mapServiceQuery4 = mapService + "/" + "?f=pjson"
+                        urlResponse = urllib.urlopen(mapServiceQuery4);
+                        # Get json for the response
+                        mapServiceQuery4JSONData = json.loads(urlResponse.read())
+                        SpatialReference =  mapServiceQuery4JSONData["extent"]["spatialReference"]["wkid"]
+                        GeometryJSON["spatialReference"] = {'wkid' : SpatialReference}
+                        
+                    # Convert geometry to shape
                     Geometry = arcpy.AsShape(GeometryJSON, "True")
-
+                    
                     # If on the first record and first request
                     if ((count == 0) and (requestsMade == 0)):
                         # If it's the first request, create new feature class
