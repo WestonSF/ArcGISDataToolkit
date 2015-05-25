@@ -105,6 +105,9 @@ Cleans the Summit Forests GIS data by merging datasets and fixing up any issues.
 #### Geodatabase Documentation
 Documents a geodatabase by exporting feature class, table and domain information to a CSV file.
 
+#### NZAA ArchSite Data Download
+Downloads archaeological data from the NZAA ArchSite and loads it into a database. 
+
 
 ## Features
 
