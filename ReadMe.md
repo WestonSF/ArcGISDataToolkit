@@ -72,8 +72,8 @@ Prepares the datasets specified for replication to another local or remote geoda
 #### Syncronise Datasets
 Runs the syncronise changes gp tool to update dataset changes from one geodatabase to another.
 
-#### Capacity Services Wellington Upload
-Updates services data for Capacity Services Wellington, packages this data up and uploads to an FTP site for download by Capacity.
+#### Wellington Water Data Upload
+Updates services data for Wellington Water, packages this data up and uploads to an FTP site for download.
 
 #### Assign Permissions on Datasets
 Updates permissions for datasets specified in a CSV file. This will go through CSV file and make sure datasets have the permissions specified for the relevant groups and users.

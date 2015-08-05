@@ -1,11 +1,11 @@
 #-------------------------------------------------------------
-# Name:       Capacity Services Wellington Upload
-# Purpose:    Updates services data for Capacity Services Wellington, packages this data up and uploads to an FTP site for download by Capacity.       
+# Name:       Wellington Water Data Upload
+# Purpose:    Updates services data for Wellington Water, packages this data up and uploads to an FTP site for download.      
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    12/06/2014
-# Last Updated:    24/06/2014
+# Last Updated:    05/08/2015
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.1/10.2
+# ArcGIS Version:   10.1+
 # Python Version:   2.7
 #--------------------------------
 
@@ -32,18 +32,14 @@ emailUser = ""
 emailPassword = ""
 emailSubject = ""
 emailMessage = ""
+enableProxy = "false"
+requestProtocol = "http" # http or https
+proxyURL = ""
 output = None
 
 # Start of main function
 def mainFunction(sourceGeodatabase,configFile,ftpSite,ftpFolder,ftpUsername,ftpPassword): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
-        # Logging
-        if (enableLogging == "true"):
-            # Setup logging
-            logger, logMessage = setLogging(logFile)
-            # Log start of process
-            logger.info("Process started.")
-            
         # --------------------------------------- Start of code --------------------------------------- #
 
         # Get a list of the feature datasets in the database
@@ -139,7 +135,7 @@ def mainFunction(sourceGeodatabase,configFile,ftpSite,ftpFolder,ftpUsername,ftpP
 
         # EXTERNAL FUNCTION - Send data to server
         FTPUpload.mainFunction(destinationFolder,ftpSite,ftpFolder,ftpUsername,ftpPassword)
-
+        
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
@@ -168,7 +164,9 @@ def mainFunction(sourceGeodatabase,configFile,ftpSite,ftpFolder,ftpUsername,ftpP
         # Logging
         if (enableLogging == "true"):
             # Log error          
-            logger.error(errorMessage)                 
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
             # Remove file handler and close log file
             logging.FileHandler.close(logMessage)
             logger.removeHandler(logMessage)
@@ -181,14 +179,16 @@ def mainFunction(sourceGeodatabase,configFile,ftpSite,ftpFolder,ftpUsername,ftpP
         # Build and show the error message
         for i in range(len(e.args)):
             if (i == 0):
-                errorMessage = str(e.args[i])
+                errorMessage = unicode(e.args[i]).encode('utf-8')
             else:
-                errorMessage = errorMessage + " " + str(e.args[i])
+                errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
         arcpy.AddError(errorMessage)              
         # Logging
         if (enableLogging == "true"):
             # Log error            
-            logger.error(errorMessage)               
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
             # Remove file handler and close log file
             logging.FileHandler.close(logMessage)
             logger.removeHandler(logMessage)
@@ -243,5 +243,18 @@ if __name__ == '__main__':
     # Arguments are optional - If running from ArcGIS Desktop tool, parameters will be loaded into *argv
     argv = tuple(arcpy.GetParameterAsText(i)
         for i in range(arcpy.GetArgumentCount()))
+    # Logging
+    if (enableLogging == "true"):
+        # Setup logging
+        logger, logMessage = setLogging(logFile)
+        # Log start of process
+        logger.info("Process started.")
+    # Setup the use of a proxy for requests
+    if (enableProxy == "true"):
+        # Setup the proxy
+        proxy = urllib2.ProxyHandler({requestProtocol : proxyURL})
+        openURL = urllib2.build_opener(proxy)
+        # Install the proxy
+        urllib2.install_opener(openURL)
     mainFunction(*argv)
     
