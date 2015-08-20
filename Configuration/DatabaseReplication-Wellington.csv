@@ -1,2 +1,4 @@
 source,destination,version
-database_replication_test,TestNewLayers\database_replication_test,no
+Crime_Incidents,Crime_IncidentsNew,no
+MastertonRoads,MastertonRoads,no
+vwLansdowneRoad,LansdowneRoad,no
