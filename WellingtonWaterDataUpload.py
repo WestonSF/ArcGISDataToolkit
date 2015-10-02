@@ -17,7 +17,7 @@ import smtplib
 import arcpy
 import csv
 import string
-import DatabaseReplication
+import GeodatabaseReplication
 import FTPUpload
 
 # Enable data to be overwritten
@@ -61,17 +61,17 @@ def mainFunction(sourceGeodatabase,configFile,ftpSite,ftpFolder,ftpUsername,ftpP
 
         featureDatasetList = arcpy.ListDatasets("", "Feature")
         # EXTERNAL FUNCTION - Copy over these feature datasets
-        DatabaseReplication.copyDatasets(sourceGeodatabase,destinationFolder,datasetsOption,updateMode,configFile,featureDatasetList,"Feature Dataset","false")
+        GeodatabaseReplication.copyDatasets(sourceGeodatabase,destinationFolder,datasetsOption,updateMode,configFile,featureDatasetList,"Feature Dataset","false")
 
         # Get a list of the feature classes in the database
         featureClassList = arcpy.ListFeatureClasses()
         # EXTERNAL FUNCTION - Copy over these feature classes
-        DatabaseReplication.copyDatasets(sourceGeodatabase,destinationFolder,datasetsOption,updateMode,configFile,featureClassList,"Feature Class","false")
+        GeodatabaseReplication.copyDatasets(sourceGeodatabase,destinationFolder,datasetsOption,updateMode,configFile,featureClassList,"Feature Class","false")
 
          # Get a list of the tables in the database
         tableList = arcpy.ListTables()
         # EXTERNAL FUNCTION - Copy over these tables
-        DatabaseReplication.copyDatasets(sourceGeodatabase,destinationFolder,datasetsOption,updateMode,configFile,tableList,"Table","false")  
+        GeodatabaseReplication.copyDatasets(sourceGeodatabase,destinationFolder,datasetsOption,updateMode,configFile,tableList,"Table","false")  
 
         # Join tables onto feature classes
         # Set CSV delimiter                         

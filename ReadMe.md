@@ -111,6 +111,9 @@ Downloads archaeological data from the NZAA ArchSite and loads it into a databas
 #### Runtime Data to File Geodatabase
 Converts all runtime data used in ArcGIS Runtime products (.geodatabase extension) to a file geodatabase.
 
+#### Livestock Improvement Corporation Datawarehouse Sync
+Syncronises data between the LIC data warehouse and GIS database, producing error and change reports.      
+
 
 ## Features
 
