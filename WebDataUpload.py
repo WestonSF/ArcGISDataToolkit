@@ -5,10 +5,10 @@
 #             NOTE: If using ArcGIS 10.0 need to set scratch workspace as a folder.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    31/05/2013
-# Last Updated:    11/02/2015
+# Last Updated:    07/10/2015
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0+
-# Python Version:   2.6/2.7
+# Python Version:   2.7
 #--------------------------------
 
 # Import modules
@@ -27,7 +27,7 @@ arcpy.env.overwriteOutput = True
 
 # Set global variables
 enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = os.path.join(os.path.dirname(__file__), r"Logs\WebDataUpload.log") # os.path.join(os.path.dirname(__file__), "Example.log")
+logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
 sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
@@ -121,10 +121,10 @@ def mainFunction(featureClasses,tables,csvFiles,csvXYFieldNames,ftpSite,ftpFolde
             FTPUpload.mainFunction(zipFile,ftpSite,ftpFolder,ftpUsername,ftpPassword)
         else:
             #--------------------------------------------Logging--------------------------------------------#
-            arcpy.AddMessage("Process stopped: No datasets provided") 
+            arcpy.AddError("Process stopped: No datasets provided") 
             # Log error
-            if logInfo == "true":         
-                loggingFunction(logFile,"error","\nProcess stopped: No datasets provided")
+            if (enableLogging == "true"):     
+                logger.error("Process stopped: No datasets provided")
             #-----------------------------------------------------------------------------------------------#
 
         # Call geoprocessing service to update data on server

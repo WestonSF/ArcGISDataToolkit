@@ -1,6 +1,6 @@
 #-------------------------------------------------------------
 # Name:       Geodatabase Maintenance
-# Purpose:    Will compress geodatabase, update statistics and rebuild tables indexes. Optionally
+# Purpose:    Will compress geodatabase, update statistics and rebuild table indexes. Optionally
 #             stops connections to the geodatabase while the tool runs.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    07/08/2013
@@ -67,15 +67,15 @@ def mainFunction(geodatabase,disconnectUsers): # Get parameters from ArcGIS Desk
         # Remove any datasets that are not owned by the connected user.
         userDataList = [ds for ds in dataList if ds.lower().find(".%s." % userName) > -1]        
 
-        # Execute analyze datasets
-        arcpy.AddMessage("Analyzing and updating the database statistics....")
-        # Note: to use the "SYSTEM" option the workspace user must be an administrator.
-        arcpy.AnalyzeDatasets_management(geodatabase, "SYSTEM", userDataList, "ANALYZE_BASE","ANALYZE_DELTA","ANALYZE_ARCHIVE")
-
         # Execute rebuild indexes
         arcpy.AddMessage("Rebuilding the indexes for all tables in the database....")
         # Note: to use the "SYSTEM" option the workspace user must be an administrator.
         arcpy.RebuildIndexes_management(geodatabase, "SYSTEM", userDataList, "ALL")
+        
+        # Execute analyze datasets
+        arcpy.AddMessage("Analyzing and updating the database statistics....")
+        # Note: to use the "SYSTEM" option the workspace user must be an administrator.
+        arcpy.AnalyzeDatasets_management(geodatabase, "SYSTEM", userDataList, "ANALYZE_BASE","ANALYZE_DELTA","ANALYZE_ARCHIVE")
 
         # If disconnecting users
         if (disconnectUsers == "true"):
