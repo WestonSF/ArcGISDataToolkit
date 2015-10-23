@@ -47,7 +47,12 @@ Converts a table or feature class to a CSV file. Optionally adds in header and f
 Downloads the data used in a map service layer by querying the json and converting to a feature class.
 
 #### WFS Layer Download
-Downloads the data used in a WFS layer. 
+Downloads a dataset from a WFS feed. Parameters required: 
+
+* URL TO WFS Server - e.g. "http://Servername/geoserver/wfs?key=xxx" 
+* Layer/table name - e.g. "parcels" 
+* WFS download type - e.g. Shape-Zip 
+* Output feature class
 
 #### Database Replication
 Copies data from one geodatabase to another using a CSV file to map dataset names. Two update options:
