@@ -4,10 +4,11 @@
 #             - URL TO WFS Server - e.g. "http://Servername/geoserver/wfs?key=xxx"
 #             - Layer/table name - e.g. "parcels"
 #             - WFS download type - e.g. Shape-Zip
-#             - Output feature class
+#             - Output workspace
+#             - Dataset name
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    23/10/2015
-# Last Updated:    23/10/2015
+# Last Updated:    24/10/2015
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.3+
 # Python Version:   2.7
@@ -44,7 +45,7 @@ proxyURL = ""
 output = None
 
 # Start of main function
-def mainFunction(wfsURL,wfsDataName,wfsDownloadType,outputFeatureClass): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(wfsURL,wfsDataName,wfsDownloadType,outputWorkspace,datasetName): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # --------------------------------------- Start of code --------------------------------------- #
 
@@ -57,24 +58,27 @@ def mainFunction(wfsURL,wfsDataName,wfsDownloadType,outputFeatureClass): # Get p
 
         # Download the file from the WFS link
         requestURL = wfsURL + firstParameter + "SERVICE=WFS&REQUEST=GetFeature&TYPENAME=" + wfsDataName + "&outputformat=" + wfsDownloadType
-        arcpy.AddMessage(requestURL)        
+        arcpy.AddMessage("WFS request made - " + requestURL)        
         response = urllib2.urlopen(requestURL)
-
+        
+        # Shape file
         if (wfsDownloadType.lower() == "shape-zip"):
             fileType = ".zip"
+        # CSV
         elif (wfsDownloadType.lower() == "csv"):
             fileType = ".csv"
-        #json    
+        # JSON   
         else: 
             # Read json response
             geometryJSON = json.loads(response.read())
 
+        # Shape file or CSV
         if ((wfsDownloadType.lower() == "shape-zip") or (wfsDownloadType.lower() == "csv")):
             # Download the data
-            arcpy.AddMessage("Downloading data from " + requestURL + "...")
+            arcpy.AddMessage("Downloading data...")
             fileChunk = 16 * 1024
             downloadedFile = os.path.join(arcpy.env.scratchFolder, "Data-" + str(uuid.uuid1()) + fileType)
-            with open(downloadedFile, 'wb') as output:
+            with open(downloadedFile, 'wb') as file:
                 downloadCount = 0
                 while True:
                     chunk = response.read(fileChunk)
@@ -86,11 +90,12 @@ def mainFunction(wfsURL,wfsDataName,wfsDownloadType,outputFeatureClass): # Get p
                     if not chunk:
                         break
                     # Write chunk to output file
-                    output.write(chunk)
+                    file.write(chunk)
                     downloadCount = downloadCount + 1
-            output.close()
+            file.close()
             arcpy.AddMessage("Downloaded to " + downloadedFile + "...")
 
+        # Shape file
         if (wfsDownloadType.lower() == "shape-zip"):
             # Unzip the file to the scratch folder
             arcpy.AddMessage("Extracting zip file...")
@@ -102,9 +107,9 @@ def mainFunction(wfsURL,wfsDataName,wfsDownloadType,outputFeatureClass): # Get p
             extractedShp = max(glob.iglob(str(arcpy.env.scratchFolder) + r"\*.shp"), key=os.path.getmtime)
 
             # Copy to feature class
-            arcpy.AddMessage("Copying to " + outputFeatureClass + "...")
-            arcpy.CopyFeatures_management(extractedShp, outputFeatureClass, "", "0", "0", "0")
-            output = outputFeatureClass
+            arcpy.AddMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")
+            arcpy.CopyFeatures_management(extractedShp, os.path.join(outputWorkspace, datasetName), "", "0", "0", "0")
+        # CSV
         elif (wfsDownloadType.lower() == "csv"):
             # Unzip the file to the scratch folder
             arcpy.AddMessage("Translating CSV file...")       
@@ -129,11 +134,27 @@ def mainFunction(wfsURL,wfsDataName,wfsDownloadType,outputFeatureClass): # Get p
                         Geometry = arcpy.FromWKT(geometryWKT,arcpy.SpatialReference(4326))
 
                         # If it's the first feature, create new feature class
-                        if (count == 0):
-                            arcpy.CopyFeatures_management(Geometry, outputFeatureClass)
-                            output = outputFeatureClass
-                    count = count + 1                                    
-        #json
+                        if (count == 1):
+                            # Create temporary feature class
+                            arcpy.CopyFeatures_management(Geometry, "in_memory\outputFeatureClass")                   
+                            geometryType = arcpy.Describe("in_memory\outputFeatureClass").shapeType
+
+                            # Create new feature class
+                            arcpy.AddMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")                
+                            arcpy.CreateFeatureclass_management(outputWorkspace, datasetName, geometryType, "", "", "", "")
+
+                        # Get the field names and values
+                        fields = ["SHAPE@"]
+                        values = [Geometry]
+                
+                        # Load it into existing feature class
+                        cursor = arcpy.da.InsertCursor(os.path.join(outputWorkspace, datasetName),fields)
+                        cursor.insertRow(values)
+                    
+                    count = count + 1
+            # Delete cursor
+            del cursor                    
+        # JSON
         else:      
             arcpy.AddMessage("Translating GeoJSON...")       
 
@@ -145,17 +166,33 @@ def mainFunction(wfsURL,wfsDataName,wfsDownloadType,outputFeatureClass): # Get p
        
                 # If it's the first feature, create new feature class
                 if (count == 0):
-                    arcpy.CopyFeatures_management(Geometry, outputFeatureClass)
-                    output = outputFeatureClass
-                count = count + 1
+                    # Create temporary feature class
+                    arcpy.CopyFeatures_management(Geometry, "in_memory\outputFeatureClass")                   
+                    geometryType = arcpy.Describe("in_memory\outputFeatureClass").shapeType
 
+                    # Create new feature class
+                    arcpy.AddMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")                
+                    arcpy.CreateFeatureclass_management(outputWorkspace, datasetName, geometryType, "", "", "", arcpy.SpatialReference(4326))
+
+                # Get the field names and values
+                fields = ["SHAPE@"]
+                values = [Geometry]
+        
+                # Load it into existing feature class
+                cursor = arcpy.da.InsertCursor(os.path.join(outputWorkspace, datasetName),fields)
+                cursor.insertRow(values)
+                    
+                count = count + 1
+            # Delete cursor
+            del cursor
+        
         # --------------------------------------- End of code --------------------------------------- #  
  
         # If called from gp tool return the arcpy parameter   
         if __name__ == '__main__':
             # Return the output if there is any
             if output:
-                arcpy.SetParameterAsText(3, output)
+                arcpy.SetParameterAsText(1, output)
         # Otherwise return the result          
         else:
             # Return the output if there is any

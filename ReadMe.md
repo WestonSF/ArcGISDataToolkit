@@ -52,7 +52,8 @@ Downloads a dataset from a WFS feed. Parameters required:
 * URL TO WFS Server - e.g. "http://Servername/geoserver/wfs?key=xxx" 
 * Layer/table name - e.g. "parcels" 
 * WFS download type - e.g. Shape-Zip 
-* Output feature class
+* Output workspace
+* Dataset name
 
 #### Database Replication
 Copies data from one geodatabase to another using a CSV file to map dataset names. Two update options:
