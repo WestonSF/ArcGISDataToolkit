@@ -118,7 +118,7 @@ def mainFunction(ncsMySQLString,ncsTableNames,ncsTables,propertyView,propertyFea
 
                 
         # Copy view into temporary location - Licences
-        arcpy.Select_analysis(licencesView, os.path.join(arcpy.env.scratchGDB, "Licences"), "Valuation_ID <> ''") 
+        arcpy.Select_analysis(licencesView, os.path.join(arcpy.env.scratchGDB, "Licences"), "") 
         # Convert to points
         arcpy.FeatureToPoint_management(os.path.join(arcpy.env.scratchGDB, "Licences"), os.path.join(arcpy.env.scratchGDB, "LicencesPoints"), "CENTROID")
 

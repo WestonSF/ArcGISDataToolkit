@@ -1,12 +1,14 @@
 #-------------------------------------------------------------
 # Name:       Map Service Download
 # Purpose:    Downloads the data used in a map service layer by querying the json
-#             and converting to a feature class.        
+#             and converting to a feature class.
+#             Existing Mode - Will delete and append records, so field names need to be the same.
+#             New Mode - Copies data over (including archive datasets if needed). Requires no locks on geodatabase datasets being overwritten.              
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    14/08/2013
-# Last Updated:    23/03/2015
+# Last Updated:    05/11/2015
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.1+
+# ArcGIS Version:   10.3+
 # Python Version:   2.7
 #--------------------------------
 
@@ -17,7 +19,8 @@ import logging
 import smtplib
 import arcpy
 import json
-import urllib
+import urllib2
+import uuid
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -31,113 +34,73 @@ emailUser = ""
 emailPassword = ""
 emailSubject = ""
 emailMessage = ""
+enableProxy = "false"
+requestProtocol = "http" # http or https
+proxyURL = ""
 output = None
 
 # Start of main function
-def mainFunction(mapService,featureClass): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(mapServiceLayer,outputFeatureClass,updateMode): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
-        # Logging
-        if (enableLogging == "true"):
-            # Setup logging
-            logger, logMessage = setLogging(logFile)
-            # Log start of process
-            logger.info("Process started.")
+        # --------------------------------------- Start of code --------------------------------------- #
 
-        # --------------------------------------- Start of code --------------------------------------- #        
-
-        # Query the map service to get the number of features as Object IDs
+        # Querying thet map service to get the json
         arcpy.AddMessage("Querying the map service...")
-        mapServiceQuery1 = mapService + "/query?where=1%3D1&returnIdsOnly=true&f=pjson"
-        urlResponse = urllib.urlopen(mapServiceQuery1);
-        # Get json for the response - Object IDs
-        mapServiceQuery1JSONData = json.loads(urlResponse.read())
-        objectIDs = mapServiceQuery1JSONData["objectIds"]
-        objectIDs.sort()
+        mapServiceQuery = mapServiceLayer + "/query?where=1%3D1&outFields=*&f=pjson"
+        arcpy.AddMessage("Map Service request made - " + mapServiceQuery)        
+        response = urllib2.urlopen(mapServiceQuery)
 
-        arcpy.AddMessage("Number of records in the map service - " + str(len(objectIDs)) + "...")       
-        maxRequests = 1000
-        requestsMade = 0
-
-        # For each record returned        
-        for i in range(len(objectIDs)):
-            # For every 1000th record
-            if ((i % maxRequests) == 0):
-                # Create the query
-                startObjectID = int(objectIDs[i])
-                endObjectID = startObjectID + 1000
-                serviceQuery = "OBJECTID >= " + str(startObjectID) + " AND OBJECTID < " + str(endObjectID)
-
-                # Query the map service to get all data     
-                mapServiceQuery2 = mapService + "/query?where=" + serviceQuery + "&returnCountOnly=false&returnIdsOnly=false&returnGeometry=true&outFields=*&f=pjson"
-                urlResponse = urllib.urlopen(mapServiceQuery2);
-                # Get json for feature returned
-                mapServiceQuery2JSONData = json.loads(urlResponse.read())
- 
-                # Get the geometry and create temporary feature class
-                arcpy.AddMessage("Converting JSON to feature class...")
-                count = 0
-                while (len(mapServiceQuery2JSONData["features"]) > count):
-                    # If geometry found                  
-                    if "geometry" in mapServiceQuery2JSONData["features"][count]:
-                        GeometryJSON = mapServiceQuery2JSONData["features"][count]["geometry"]
-                        # Add spatial reference to geometry
-                        SpatialReference = mapServiceQuery2JSONData["spatialReference"]["wkid"]
-                        GeometryJSON["spatialReference"] = {'wkid' : SpatialReference}
-                    # Else feature layer
-                    else:
-                        mapServiceQuery3 = mapService + "/" + str(mapServiceQuery2JSONData["features"][count]["attributes"]["OBJECTID"]) + "?f=pjson"
-                        urlResponse = urllib.urlopen(mapServiceQuery3);
-                        # Get json for the response
-                        mapServiceQuery3JSONData = json.loads(urlResponse.read())
-                        # Add spatial reference to geometry
-                        GeometryJSON = mapServiceQuery3JSONData["feature"]["geometry"]
-                        mapServiceQuery4 = mapService + "/" + "?f=pjson"
-                        urlResponse = urllib.urlopen(mapServiceQuery4);
-                        # Get json for the response
-                        mapServiceQuery4JSONData = json.loads(urlResponse.read())
-                        SpatialReference =  mapServiceQuery4JSONData["extent"]["spatialReference"]["wkid"]
-                        GeometryJSON["spatialReference"] = {'wkid' : SpatialReference}
-                        
-                    # Convert geometry to shape
-                    Geometry = arcpy.AsShape(GeometryJSON, "True")
-                    
-                    # If on the first record and first request
-                    if ((count == 0) and (requestsMade == 0)):
-                        # If it's the first request, create new feature class
-                        arcpy.CopyFeatures_management(Geometry, featureClass)
-
-                        # Reset data
-                        arcpy.DeleteFeatures_management(featureClass)
-                        
-                        # Go through the attributes
-                        for key, value in mapServiceQuery2JSONData["features"][count]["attributes"].iteritems():
-                            # Add new field - Don't include ArcGIS generated fields
-                            if ((key.lower() <> "objectid") and (key.lower() <> "shape.starea()") and (key.lower() <> "shape.stlength()") and (key.lower() <> "shape.area") and (key.lower() <> "shape.len")):
-                                arcpy.AddField_management(featureClass, key, "TEXT", "", "", "500")
-                    
-                    # Get the field names and values
-                    fields = ["SHAPE@"]
-                    values = [Geometry]
-                    
-                    for key, value in mapServiceQuery2JSONData["features"][count]["attributes"].iteritems():
-                        # Don't include ArcGIS generated fields
-                        if ((key.lower() <> "objectid") and (key.lower() <> "shape.starea()") and (key.lower() <> "shape.stlength()") and (key.lower() <> "shape.area") and (key.lower() <> "shape.len")):
-                            # Replace invalid characters
-                            if "(" in key:
-                                key = key.replace("(", "_")
-                            if ")" in key:
-                                key = key.replace(")", "_")
-                            fields.append(key)
-                            values.append(value)
-
-                    # Load it into existing feature class
-                    cursor = arcpy.da.InsertCursor(featureClass,fields)
-                    cursor.insertRow(values)
-
-                    count = count + 1
-                    arcpy.AddMessage("Loaded " + str(count+(requestsMade*1000)) + " of " + str(len(objectIDs)) + " features...")
-
-                requestsMade = requestsMade + 1
+        # Download the data
+        arcpy.AddMessage("Downloading data...")
+        fileChunk = 16 * 1024
+        downloadedFile = os.path.join(arcpy.env.scratchFolder, "Data-" + str(uuid.uuid1()) + ".json")
+        with open(downloadedFile, 'wb') as file:
+            downloadCount = 0
+            while True:
+                chunk = response.read(fileChunk)
+                # If data size is small
+                if ((downloadCount == 0) and (len(chunk) < 1000)):
+                    # Log error and end download
+                    arcpy.AddError("No data returned, check the URL...")  
+                    sys.exit()
+                if not chunk:
+                    break
+                # Write chunk to output file
+                file.write(chunk)
+                downloadCount = downloadCount + 1
+        file.close()
+        arcpy.AddMessage("Downloaded to " + downloadedFile + "...")
+    
+        # Convert JSON to feature class
+        arcpy.AddMessage("Converting JSON to feature class...")
+        # Overwrite dataset
+        if (updateMode.lower() == "new"):
+            arcpy.JSONToFeatures_conversion(downloadedFile, os.path.join(arcpy.env.scratchGDB, "Dataset"))
+            # Get record count
+            recordCount = arcpy.GetCount_management(os.path.join(arcpy.env.scratchGDB, "Dataset"))
+            arcpy.AddMessage("Number of records for " + outputFeatureClass + " - " + str(recordCount))  
+            # Logging 
+            if (enableLogging == "true"): 
+                # Log record count 
+                logger.info("Number of records for " + outputFeatureClass + " - " + str(recordCount)) 
+            # Load in data 
+            if (recordCount > 0): 
+                arcpy.CopyFeatures_management(os.path.join(arcpy.env.scratchGDB, "Dataset"), outputFeatureClass, "", "0", "0", "0")
+        # Delete and append
+        else:
+            arcpy.JSONToFeatures_conversion(downloadedFile, os.path.join(arcpy.env.scratchGDB, "Dataset"))
+            # Get record count
+            recordCount = arcpy.GetCount_management(os.path.join(arcpy.env.scratchGDB, "Dataset"))
+            arcpy.AddMessage("Number of records for " + outputFeatureClass + " - " + str(recordCount))  
+            # Logging 
+            if (enableLogging == "true"): 
+                # Log record count 
+                logger.info("Number of records for " + outputFeatureClass + " - " + str(recordCount)) 
+            # Load in data 
+            if (recordCount > 0): 
+                arcpy.DeleteFeatures_management(outputFeatureClass)             
+                arcpy.Append_management(os.path.join(arcpy.env.scratchGDB, "Dataset"), outputFeatureClass, "NO_TEST", "", "")           
+            
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
@@ -154,10 +117,10 @@ def mainFunction(mapService,featureClass): # Get parameters from ArcGIS Desktop 
         if (enableLogging == "true"):
             # Log end of process
             logger.info("Process ended.")
-            # Remove file handler and close log file            
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
-        pass
+            # Remove file handler and close log file        
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []   
     # If arcpy error
     except arcpy.ExecuteError:           
         # Build and show the error message
@@ -166,10 +129,13 @@ def mainFunction(mapService,featureClass): # Get parameters from ArcGIS Desktop 
         # Logging
         if (enableLogging == "true"):
             # Log error          
-            logger.error(errorMessage)                 
-            # Remove file handler and close log file
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
+            # Remove file handler and close log file        
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []   
         if (sendErrorEmail == "true"):
             # Send email
             sendEmail(errorMessage)
@@ -186,10 +152,13 @@ def mainFunction(mapService,featureClass): # Get parameters from ArcGIS Desktop 
         # Logging
         if (enableLogging == "true"):
             # Log error            
-            logger.error(errorMessage)               
-            # Remove file handler and close log file
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
+            # Remove file handler and close log file        
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []   
         if (sendErrorEmail == "true"):
             # Send email
             sendEmail(errorMessage)            
@@ -241,4 +210,17 @@ if __name__ == '__main__':
     # Arguments are optional - If running from ArcGIS Desktop tool, parameters will be loaded into *argv
     argv = tuple(arcpy.GetParameterAsText(i)
         for i in range(arcpy.GetArgumentCount()))
+    # Logging
+    if (enableLogging == "true"):
+        # Setup logging
+        logger, logMessage = setLogging(logFile)
+        # Log start of process
+        logger.info("Process started.")
+    # Setup the use of a proxy for requests
+    if (enableProxy == "true"):
+        # Setup the proxy
+        proxy = urllib2.ProxyHandler({requestProtocol : proxyURL})
+        openURL = urllib2.build_opener(proxy)
+        # Install the proxy
+        urllib2.install_opener(openURL)
     mainFunction(*argv)
