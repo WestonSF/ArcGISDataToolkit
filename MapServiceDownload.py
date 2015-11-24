@@ -6,7 +6,7 @@
 #             New Mode - Copies data over (including archive datasets if needed). Requires no locks on geodatabase datasets being overwritten.              
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    14/08/2013
-# Last Updated:    05/11/2015
+# Last Updated:    24/11/2015
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.3+
 # Python Version:   2.7
@@ -22,6 +22,7 @@ import json
 import urllib
 import urllib2
 import uuid
+import math
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -56,25 +57,36 @@ def mainFunction(mapServiceLayer,outputFeatureClass,updateMode): # Get parameter
         arcpy.AddMessage("Number of records in the layer - " + str(len(objectIDs)) + "...")
         # Set the number of records per request and the number of requests that need to be made
         maxRecords = 1000
-        requestsToMake = 1 + (len(objectIDs) / maxRecords)
+        # If under maxRecords, just need to make one request
+        if (len(objectIDs) < maxRecords):
+            requestsToMake = 1
+        else:
+            # Calculate the number of requests - Always round up
+            requestsToMake = math.ceil(float(len(objectIDs)) / float(maxRecords))
 
+        arcpy.AddMessage("Downloading data to " + arcpy.env.scratchFolder + "...")
         # For every request
         count = 0
-        arcpy.AddMessage("Downloading data to " + arcpy.env.scratchFolder + "...")
         while (int(requestsToMake) > count):
             # Create the query
             startObjectID = int(objectIDs[count*maxRecords])
-            # If at the final request
-            if (int(requestsToMake) == (count+1)):
+            # If at the final request or if there is only one request that needs to be made
+            if ((int(requestsToMake) == (count+1)) or (requestsToMake == 1)):
                 # Get the last object ID
-                endObjectID = int(objectIDs[len(objectIDs)])
+                endObjectID = int(objectIDs[len(objectIDs)-1])
+                serviceQuery = "OBJECTID>%3D" + str(startObjectID) + "+AND+OBJECTID<%3D" + str(endObjectID)
             else:
-                endObjectID = int(objectIDs[startObjectID+maxRecords])
-            serviceQuery = "OBJECTID >= " + str(startObjectID) + " AND OBJECTID < " + str(endObjectID)
+                # Start object ID plus 1000 records
+                endObjectID = int(objectIDs[(count*maxRecords)+maxRecords])
+                serviceQuery = "OBJECTID>%3D" + str(startObjectID) + "+AND+OBJECTID<" + str(endObjectID)
                 
-            # Query the map service to data in json format   
-            mapServiceQuery2 = mapServiceLayer + "/query?where=" + serviceQuery + "&returnCountOnly=false&returnIdsOnly=false&returnGeometry=true&outFields=*&f=pjson"
-            response = urllib2.urlopen(mapServiceQuery2)  
+            # Query the map service to data in json format
+            try:
+                mapServiceQuery2 = mapServiceLayer + "/query?where=" + serviceQuery + "&returnCountOnly=false&returnIdsOnly=false&returnGeometry=true&outFields=*&f=pjson"
+                arcpy.AddMessage(mapServiceQuery2)
+                response = urllib2.urlopen(mapServiceQuery2)  
+            except urllib2.URLError, e:
+                arcpy.AddError("There was an error: %r" % e)
             
             # Download the data
             fileChunk = 16 * 1024
@@ -104,11 +116,11 @@ def mainFunction(mapServiceLayer,outputFeatureClass,updateMode): # Get parameter
                 arcpy.JSONToFeatures_conversion(downloadedFile, "in_memory\\DatasetTemp")
                 arcpy.Append_management("in_memory\\DatasetTemp", os.path.join(arcpy.env.scratchGDB, "Dataset"), "NO_TEST", "", "")           
 
-            # If at the final request
-            if (int(requestsToMake) == (count+1)):
+            # If at the final request or if there is only one request that needs to be made
+            if ((int(requestsToMake) == (count+1)) or (requestsToMake == 1)):
                 arcpy.AddMessage("Downloaded and converted JSON for " + str(len(objectIDs)) + " of " + str(len(objectIDs)) + " features...")                
             else:
-                arcpy.AddMessage("Downloaded and converted JSON for " + str(count*maxRecords) + " of " + str(len(objectIDs)) + " features...")
+                arcpy.AddMessage("Downloaded and converted JSON for " + str((count+1)*maxRecords) + " of " + str(len(objectIDs)) + " features...")
             count = count + 1
             
         # Convert JSON to feature class
