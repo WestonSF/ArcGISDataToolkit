@@ -83,7 +83,6 @@ def mainFunction(mapServiceLayer,outputFeatureClass,updateMode): # Get parameter
             # Query the map service to data in json format
             try:
                 mapServiceQuery2 = mapServiceLayer + "/query?where=" + serviceQuery + "&returnCountOnly=false&returnIdsOnly=false&returnGeometry=true&outFields=*&f=pjson"
-                arcpy.AddMessage(mapServiceQuery2)
                 response = urllib2.urlopen(mapServiceQuery2)  
             except urllib2.URLError, e:
                 arcpy.AddError("There was an error: %r" % e)

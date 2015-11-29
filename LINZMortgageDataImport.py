@@ -3,10 +3,10 @@
 # Purpose:    Creates a mortgage feature class by parcel and suburb based of LINZ parcels and encumbrance data.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    25/04/2014
-# Last Updated:    20/12/2014
+# Last Updated:    27/11/2015
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.1+
-# Python Version:   2.7
+# ArcGIS Version:   ArcGIS for Desktop 10.3+ or ArcGIS Pro 1.1+
+# Python Version:   2.7 or 3.4
 #--------------------------------
 
 # Import modules
@@ -15,6 +15,13 @@ import sys
 import logging
 import smtplib
 import arcpy
+# Python version check
+if sys.version_info[0] < 3:
+    # Python 2.x
+    import urllib2
+else:
+    # Python 3.x
+    import urllib.request as urllib2    
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -34,19 +41,24 @@ proxyURL = ""
 output = None
 
 # Start of main function
-def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,suburbsFeatureClass,mortgageFeatureClass,mortgageSuburbsFeatureClass): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,suburbsFeatureClass,extentFeatureClass,mortgageFeatureClass,mortgageSuburbsFeatureClass): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # --------------------------------------- Start of code --------------------------------------- #
 
         # Set the banks
-        banks = ["ANZ","Westpac","BNZ","ASB","Kiwibank","Mortgage Holding Trust","Co-operative Bank","Rabobank","TSB","New Zealand Home Loans","Countrywide","AMP","Home Mortgage Company","PGG Wrightson","Sovereign","Other"]
+        banks = ["Auckland Savings Bank","Australia and New Zealand Banking Group","Australian Mutual Provident Society","Bank of New Zealand","Heartland Bank","Kiwibank","New Zealand Home Loans","PGG Wrightson","Rabobank","Southland Building Society","Sovereign","Taranaki Savings Bank","The Co-Operative Bank","Wairarapa Building Society","Welcome Home Loan","Westpac","Other"]
 
         # Select out mortgage data
         arcpy.AddMessage("Extracting mortgage data...")
         arcpy.TableSelect_analysis(encumbranceTable, os.path.join(arcpy.env.scratchGDB, "Mortgage"), "instrument_type = 'Mortgage'")
         arcpy.TableSelect_analysis(parcelTitleMatchTable, os.path.join(arcpy.env.scratchGDB, "ParcelTitleMatch"), "")
-        # Select parcel data
-        arcpy.Select_analysis(parcelFeatureClass, os.path.join(arcpy.env.scratchGDB, "Parcel"), "")
+        # If extent provided
+        if (extentFeatureClass):
+            # Clip parcel data
+            arcpy.Clip_analysis(parcelFeatureClass, extentFeatureClass, os.path.join(arcpy.env.scratchGDB, "Parcel"))
+        else:        
+            # Select parcel data
+            arcpy.Select_analysis(parcelFeatureClass, os.path.join(arcpy.env.scratchGDB, "Parcel"), "")
         
         # Select most recent mortgage record for each title
         arcpy.AddMessage("Getting the most recent mortgage records...")
@@ -65,22 +77,32 @@ def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,subur
         arcpy.MakeQueryTable_management(os.path.join(arcpy.env.scratchGDB, "Parcel") + ";" + os.path.join(arcpy.env.scratchGDB, "ParcelTitleMatch"), "ParcelTitlesLayer", "USE_KEY_FIELDS", "", "", "Parcel.id = ParcelTitleMatch.par_id")
         arcpy.Select_analysis("ParcelTitlesLayer", os.path.join(arcpy.env.scratchGDB, "ParcelTitles"), "")
         # Join parcel and mortgage data
-        arcpy.MakeQueryTable_management(os.path.join(arcpy.env.scratchGDB, "ParcelTitles") + ";" + os.path.join(arcpy.env.scratchGDB, "MortgageRecent"), "ParcelTitlesMortgageLayer", "USE_KEY_FIELDS", "", "", "ParcelTitles.ttl_title_no = MortgageRecent.title_no")
+        arcpy.MakeQueryTable_management(os.path.join(arcpy.env.scratchGDB, "ParcelTitles") + ";" + os.path.join(arcpy.env.scratchGDB, "MortgageRecent"), "ParcelTitlesMortgageLayer", "USE_KEY_FIELDS", "", "", "ParcelTitles.ttl_title_ = MortgageRecent.title_no")
         arcpy.Select_analysis("ParcelTitlesMortgageLayer", mortgageFeatureClass, "")
 
         # Cleaning up fields
         arcpy.AddMessage("Cleaning up fields...")
         arcpy.AddField_management(mortgageFeatureClass, "mortgage_provider", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
-        arcpy.CalculateField_management(mortgageFeatureClass, "mortgage_provider", "changeValue(!memorial_text!)", "PYTHON_9.3", "def changeValue(var):\\n  if \"ANZ\" in var:\\n    return \"ANZ\"\\n  if \"National Bank\" in var:\\n    return \"ANZ\"\\n  if \"Westpac\" in var:\\n    return \"Westpac\"\\n  if \"ASB\" in var:\\n    return \"ASB\"\\n  if \"Bank of New Zealand\" in var:\\n    return \"BNZ\"\\n  if \"Kiwibank\" in var:\\n    return \"Kiwibank\"\\n  if \"TSB\" in var:\\n    return \"TSB\"\\n  if \"Rabobank\" in var:\\n    return \"Rabobank\"\\n  if \"Co-operative Bank\" in var:\\n    return \"Co-operative Bank\"\\n  if \"PSIS\" in var:\\n    return \"Co-operative Bank\"\\n  if \"New Zealand Home Lending\" in var:\\n    return \"New Zealand Home Loans\"\\n  if \"AMP\" in var:\\n    return \"AMP\"\\n  if \"Home Mortgage Company\" in var:\\n    return \"Home Mortgage Company\"\\n  if \"Mortgage Holding Trust\" in var:\\n    return \"Mortgage Holding Trust\"\\n  if \"PGG Wrightson\" in var:\\n    return \"PGG Wrightson\"\\n  if \"Countrywide\" in var:\\n    return \"Countrywide\"\\n  if \"Sovereign\" in var:\\n    return \"Sovereign\"\\n  else:\\n    return \"Other\"\\n")
+        # Calculating mortgage provider field from memorial text
+        arcpy.CalculateField_management(mortgageFeatureClass, "mortgage_provider", "changeValue(!memorial_text!)", "PYTHON_9.3", "def changeValue(var):\\n  if \"ANZ\" in var:\\n    return \"Australia and New Zealand Banking Group\"\\n  if \"National Bank of New Zealand\" in var:\\n    return \"Australia and New Zealand Banking Group\"\\n  if \"Post Office Bank\" in var:\\n    return \"Australia and New Zealand Banking Group\"\\n  if \"Westpac\" in var:\\n    return \"Westpac\"\\n  if \"Home Mortgage Company\" in var:\\n    return \"Westpac\"\\n  if \"Trust Bank New Zealand\" in var:\\n    return \"Westpac\"\\n  if \"ASB\" in var:\\n    return \"Auckland Savings Bank\"\\n  if \"Bank of New Zealand\" in var:\\n    return \"Bank of New Zealand\"\\n  if \"Kiwibank\" in var:\\n    return \"Kiwibank\"\\n  if \"TSB\" in var:\\n    return \"Taranaki Savings Bank\"\\n  if \"Southland Building Society\" in var:\\n    return \"Southland Building Society\"\\n  if \"AMP\" in var:\\n    return \"Australian Mutual Provident Society\"\\n  if \"Rabobank\" in var:\\n    return \"Rabobank\"\\n  if \"Rabo Wrightson\" in var:\\n    return \"Rabobank\"\\n  if \"Countrywide\" in var:\\n    return \"Australia and New Zealand Banking Group\"\\n  if \"Mortgage Holding Trust\" in var:\\n    return \"Sovereign\"\\n  if \"Co-operative Bank\" in var:\\n    return \"The Co-Operative Bank\"\\n  if \"Co-Operative Bank\" in var:\\n    return \"The Co-Operative Bank\"\\n  if \"PSIS\" in var:\\n    return \"The Co-Operative Bank\"\\n  if \"New Zealand Home Lending\" in var:\\n    return \"New Zealand Home Loans\"\\n  if \"Wairarapa Building Society\" in var:\\n    return \"Wairarapa Building Society\"\\n  if \"PGG Wrightson\" in var:\\n    return \"PGG Wrightson\"\\n  if \"Heartland Bank\" in var:\\n    return \"Heartland Bank\"\\n  if \"Heartland Building Society\" in var:\\n    return \"Heartland Bank\"\\n  if \"Housing New Zealand\" in var:\\n    return \"Welcome Home Loan\"\\n  if \"Housing Corporation of New Zealand\" in var:\\n    return \"Welcome Home Loan\"\\n  else:\\n    return \"Other\"")
         arcpy.DeleteField_management(mortgageFeatureClass, "id;appellation;affected_surveys;parcel_intent;topology_type;statutory_actions;titles;survey_area;OBJECTID_1;id_1;ttl_title_no;source;OBJECTID_12;FREQUENCY;FullID")
         arcpy.AlterField_management(mortgageFeatureClass, "MAX_instrument_lodged_datetime", "date_lodged", "", "DATE", "8", "NULLABLE", "false")
         arcpy.AlterField_management(mortgageFeatureClass, "memorial_text", "description", "", "TEXT", "18000", "NULLABLE", "false")
         arcpy.AddField_management(mortgageFeatureClass, "land_area", "DOUBLE", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
         arcpy.CalculateField_management(mortgageFeatureClass, "land_area", "!SHAPE_Area!", "PYTHON_9.3", "")        
 
+        # If extent provided
+        if (extentFeatureClass):
+            # Clip suburbs data
+            arcpy.Clip_analysis(suburbsFeatureClass, extentFeatureClass, os.path.join(arcpy.env.scratchGDB, "Suburb"))
+            
+        else:        
+            # Select suburbs data
+            arcpy.Select_analysis(suburbsFeatureClass, os.path.join(arcpy.env.scratchGDB, "Suburb"), "")
+       
         # Spatially join suburb info
         arcpy.AddMessage("Analysing mortgages by suburb...")
-        arcpy.SpatialJoin_analysis(mortgageFeatureClass, suburbsFeatureClass, os.path.join(arcpy.env.scratchGDB, "MortgageSuburbs"), "JOIN_ONE_TO_ONE", "KEEP_ALL", "", "INTERSECT", "", "")
+        arcpy.SpatialJoin_analysis(mortgageFeatureClass, os.path.join(arcpy.env.scratchGDB, "Suburb"), os.path.join(arcpy.env.scratchGDB, "MortgageSuburbs"), "JOIN_ONE_TO_ONE", "KEEP_ALL", "", "INTERSECT", "", "")
         # Summary stats for suburbs
         arcpy.Statistics_analysis(os.path.join(arcpy.env.scratchGDB, "MortgageSuburbs"), os.path.join(arcpy.env.scratchGDB, "MortgageSuburbsStats"), "mortgage_provider COUNT", "SUBURB_4THORDER;mortgage_provider")
 
@@ -91,7 +113,7 @@ def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,subur
 
         # Get the banks fields
         for count,value in enumerate(banks):
-            banks[count] = value.replace(" ", "_").replace("-", "_")
+            banks[count] = value.replace(" ", "_").replace("-", "_").replace("(", "_").replace(")", "_")
             
         fields = ["SUBURB_4THORDER","mortgage_provider","FREQUENCY"] + banks
         with arcpy.da.UpdateCursor(os.path.join(arcpy.env.scratchGDB, "MortgageSuburbsStats"), fields) as cursor:
@@ -99,7 +121,7 @@ def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,subur
             for row in cursor:
                 suburb = row[0]
                 mortgageProvider = row[1]
-                mortgageProvider = mortgageProvider.replace(" ", "_").replace("-", "_")
+                mortgageProvider = mortgageProvider.replace(" ", "_").replace("-", "_").replace("(", "_").replace(")", "_")
                 count = row[2]
 
                 # Update the mortgage provider row with its count
@@ -107,7 +129,7 @@ def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,subur
                 cursor.updateRow(row)
 
         # Dissolve the stats
-        arcpy.Statistics_analysis(os.path.join(arcpy.env.scratchGDB, "MortgageSuburbsStats"), os.path.join(arcpy.env.scratchGDB, "MortgageSuburbsStatsDissolved"), "FREQUENCY SUM;ANZ SUM;Westpac SUM;BNZ SUM;ASB SUM;Kiwibank SUM;Mortgage_Holding_Trust SUM;Co_operative_Bank SUM;Rabobank SUM;TSB SUM;New_Zealand_Home_Loans SUM;Countrywide SUM;AMP SUM;Home_Mortgage_Company SUM;PGG_Wrightson SUM;Sovereign SUM;Other SUM", "SUBURB_4THORDER")
+        arcpy.Statistics_analysis(os.path.join(arcpy.env.scratchGDB, "MortgageSuburbsStats"), os.path.join(arcpy.env.scratchGDB, "MortgageSuburbsStatsDissolved"), "FREQUENCY SUM;Auckland_Savings_Bank SUM;Australia_and_New_Zealand_Banking_Group SUM;Australian_Mutual_Provident_Society SUM;Bank_of_New_Zealand SUM;Heartland_Bank SUM;Kiwibank SUM;New_Zealand_Home_Loans SUM;PGG_Wrightson SUM;Rabobank SUM;Southland_Building_Society SUM;Sovereign SUM;Taranaki_Savings_Bank SUM;The_Co_Operative_Bank SUM;Wairarapa_Building_Society SUM;Welcome_Home_Loan SUM;Westpac SUM;Other SUM;", "SUBURB_4THORDER")
 
         # Create mortgage suburbs feature class
         arcpy.AddMessage("Creating mortgage suburbs feature class...")
@@ -163,9 +185,23 @@ def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,subur
         # Build and show the error message
         for i in range(len(e.args)):
             if (i == 0):
-                errorMessage = unicode(e.args[i]).encode('utf-8')
+                # Python version check
+                if sys.version_info[0] < 3:
+                    # Python 2.x
+                    errorMessage = unicode(e.args[i]).encode('utf-8')
+                else:
+                    # Python 3.x
+                    errorMessage = str(e.args[i]).encode('utf-8')
             else:
-                errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
+                # Python version check
+                if sys.version_info[0] < 3:
+                    # Python 2.x
+                    errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
+                else:
+                    # Python 3.x
+                    errorMessage = errorMessage + " " + str(e.args[i]).encode('utf-8')
+                    
+                
         arcpy.AddError(errorMessage)              
         # Logging
         if (enableLogging == "true"):

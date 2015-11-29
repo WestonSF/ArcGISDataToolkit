@@ -3,7 +3,7 @@
 # Purpose:    Syncronises data between the LIC data warehouse and GIS database, producing error and change reports.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    18/09/2015
-# Last Updated:    02/10/2015
+# Last Updated:    10/11/2015 (TWH)
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.3+
 # Python Version:   2.7
@@ -17,43 +17,86 @@ import smtplib
 import arcpy
 import string
 import datetime
-
-# Enable data to be overwritten
-arcpy.env.overwriteOutput = True
+import time
 
 # Set global variables
 enableLogging = "true" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
 logFile = os.path.join(os.path.dirname(__file__), "Logs\LICDataWarehouseSync.log") # os.path.join(os.path.dirname(__file__), "Example.log")
-sendErrorEmail = "false"
-emailTo = ""
-emailUser = ""
+sendErrorEmail = "true"
+emailTo = "cgriffin@lic.co.nz, araj@lic.co.nz"
+emailUser = "svcaGIS@lic.co.nz"
 emailPassword = ""
-emailSubject = ""
+emailSubject = "EDW/GIS Sync"
 emailMessage = ""
 enableProxy = "false"
 requestProtocol = "http" # http or https
 proxyURL = ""
 output = None
 
+if arcpy.CheckProduct("ArcEditor") == "Available":
+    print "License OK"
+else:
+    print "License not available"
+    sendEmail("Quitting","Cant get a desktop GIS license.")
+    sys.exit(-99999)
+
+# Enable data to be overwritten
+arcpy.env.overwriteOutput = True
+
 # Setup up reporting dictionary
 gisReportDict = {}
 gisReportCount = 0
         
 # Start of main function
-def mainFunction(gisProperty,gisShed,gisEntrance,gisPropertyEntranceRelate,gisPropertyShedRelate,gisshedEntranceRelate,dwProperty,dwShed,gisDataSyncReport): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(gisProperty,gisShed,gisEntrance,gisPropertyEntranceRelate,gisPropertyShedRelate,gisshedEntranceRelate,dwProperty,dwShed,gisDataSyncReport,dwLoadStatus): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
+        # Check the DW has finished its job
+        dwLoadNotComplete = True
+
+        while dwLoadNotComplete:
+            #Check if there is a row with both start and end times from today
+            dwLoadStatusSearchCursor = arcpy.da.SearchCursor(dwLoadStatus, ["start_datetime","end_datetime"], "start_date = CAST(GETDATE() AS DATE) AND end_date = CAST(GETDATE() AS DATE)")        
+            for row in dwLoadStatusSearchCursor:
+                dwLoadNotComplete = False                
+
+            if dwLoadNotComplete:
+                # Insert row to say we are waiting for DW to complete
+                gisReportInsertCursor = arcpy.da.InsertCursor(gisDataSyncReport,["ID","Date","LogType","Description"])
+                gisReportInsertCursor.insertRow([0,datetime.datetime.now(),"WAIT","The DW ETL is not complete, waiting 5 minutes."])
+                del gisReportInsertCursor
+
+                time.sleep(300) #sleep for 5 minutes 
+                
+                #If after 11am then quit
+                if datetime.datetime.now().hour >= 11:
+                    # Insert row to say we are quitting
+                    gisReportInsertCursor = arcpy.da.InsertCursor(gisDataSyncReport,["ID","Date","LogType","Description"])
+                    gisReportInsertCursor.insertRow([0,datetime.datetime.now(),"QUIT","The GIS Data Sync is quitting as its after 11am."])
+                    del gisReportInsertCursor
+                    sendEmail("Quitting","The GIS Data Sync is quitting as its after 11am.")
+                    sys.exit(-99999)
+        
+        # Insert row to say we are starting
+        gisReportInsertCursor = arcpy.da.InsertCursor(gisDataSyncReport,["ID","Date","LogType","Description"])
+        gisReportInsertCursor.insertRow([0,datetime.datetime.now(),"START","The DW GIS Data Sync is starting"])
+        del gisReportInsertCursor
+        
         # --------------------------------------- Start of code --------------------------------------- #
         global gisReportDict
         global gisReportCount
         
         # Set up search cursors
-        gisPropertySearchCursor = arcpy.da.SearchCursor(gisProperty, ["Id","GlobalID","SHAPE@X","SHAPE@Y"])
-        dwPropertySearchCursor = arcpy.da.SearchCursor(dwProperty, ["property_bsns_partner_num"])
+        # GIS Property
+        gisPropertySearchCursor = arcpy.da.SearchCursor(gisProperty, ["Id","GlobalID","SHAPE@X","SHAPE@Y"], "RecordStatus <> 'I'")
+        # GIS Shed
+        gisPropertyShedSearchCursor = arcpy.da.SearchCursor(gisShed, ["Id"], "RecordStatus <> 'I'")
+        # GIS Property/Entrance Relationship
         gisPropertyEntranceRelateSearchCursor = arcpy.da.SearchCursor(gisPropertyEntranceRelate, ["PropertyGlobalID","EntranceGlobalID"])
-        gisPropertyShedSearchCursor = arcpy.da.SearchCursor(gisShed, ["Id"])
-        dwPropertyShedSearchCursor = arcpy.da.SearchCursor(dwShed, ["shed_bsns_partner_num"])        
+        # GIS Property/Shed Relationship
         gisPropertyShedRelateSearchCursor = arcpy.da.SearchCursor(gisPropertyShedRelate, ["ShedID","PropertyID"])
 
+        dwPropertyShedSearchCursor = arcpy.da.SearchCursor(dwShed, ["shed_bsns_partner_num"])
+        dwPropertySearchCursor = arcpy.da.SearchCursor(dwProperty, ["property_bsns_partner_num"])        
 
         # ---------------- Log the differing IDs - Property not in Data Warehouse ----------------
         # Add GIS property into array and dictionary
@@ -118,7 +161,6 @@ def mainFunction(gisProperty,gisShed,gisEntrance,gisPropertyEntranceRelate,gisPr
         del dwPropertySearchCursor
         del gisPropertyEntranceRelateSearchCursor
 
-
         # ---------------- Create Property Entrance Point - If Property not in Property Entrance Relate ----------------
         gisPropertyGlobalIDsArray = []
         gisPropertyEntranceRelatesToAddDict = {}        
@@ -136,12 +178,15 @@ def mainFunction(gisProperty,gisShed,gisEntrance,gisPropertyEntranceRelate,gisPr
                 propertyXPoint = gisPropertyDict[gisdwPropertyID][1]
                 propertyYPoint = gisPropertyDict[gisdwPropertyID][2]
                 propertyPoint = arcpy.Point(propertyXPoint,propertyYPoint)
+
                 # Insert new record
+                propertyEntranceOID = -1
                 with arcpy.da.InsertCursor(gisEntrance,["SHAPE@XY","RecordStatus","SpatialAccuracy","CreatedUser","CreatedDate","LastEditedUser","LastEditedDate","EntranceNumber"]) as gisPropertyEntranceInsertCursor:
-                    gisPropertyEntranceInsertCursor.insertRow([propertyPoint,"M","MIG","SCRIPT",datetime.datetime.now(),"SCRIPT",datetime.datetime.now(),1])
+                    propertyEntranceOID = gisPropertyEntranceInsertCursor.insertRow([propertyPoint,"M","MIG","SCRIPT",datetime.datetime.now(),"SCRIPT",datetime.datetime.now(),1])
                 
                 # Get the global ID for the record just created
-                gisEntranceRows = [row for row in arcpy.da.SearchCursor(gisEntrance, "GlobalID", sql_clause=(None, "ORDER BY OBJECTID ASC"))]
+                #gisEntranceRows = [row for row in arcpy.da.SearchCursor(gisEntrance, "GlobalID", sql_clause=(None, "ORDER BY OBJECTID ASC"))]
+                gisEntranceRows = [row for row in arcpy.da.SearchCursor(gisEntrance, "GlobalID", "OBJECTID = " + str(propertyEntranceOID))]                 
                 propertyEntranceGlobalID = gisEntranceRows[-1][0]
 
                 # Info message    
@@ -162,20 +207,20 @@ def mainFunction(gisProperty,gisShed,gisEntrance,gisPropertyEntranceRelate,gisPr
 
         for key, value in gisPropertyEntranceRelatesToAddDict.iteritems():
             # Create record for property entrance to property relate
-            gisPropertyEntranceRelateInsertCursor.insertRow([key,value])
+            newOID = gisPropertyEntranceRelateInsertCursor.insertRow([key,value])
 
             # Update property entrance to property relate dictionary
             gisPropertyEntranceDict[key] = value           
 
             # Get the property ID
             for keyProp, valueProp in gisPropertyDict.iteritems():
-                if (key == keyProp):
+                if (str(key) == str(valueProp[0])):
                     # Info message   
                     describeDataset = arcpy.Describe(gisPropertyEntranceRelate)
-                    descriptionString = "New relationship record created - " + valueProp + ": " + describeDataset.name
+                    descriptionString = "New relationship record created - " + keyProp + ": " + describeDataset.name
                     arcpy.AddMessage(descriptionString)                        
                     # Add to logs dictionary
-                    gisReportDict[gisReportCount] = [valueProp,datetime.datetime.now(),"CHANGE",descriptionString]
+                    gisReportDict[gisReportCount] = [keyProp,datetime.datetime.now(),"CHANGE",descriptionString]
                     gisReportCount = gisReportCount + 1
                 
         # Delete cursor object
@@ -218,7 +263,7 @@ def mainFunction(gisProperty,gisShed,gisEntrance,gisPropertyEntranceRelate,gisPr
         # ---------------- Log the differing IDs - Shed not in Data Warehouse ----------------
         # Add GIS property shed into array
         gisPropertyShedIDsArray = []
-        gisPropertyShedSearchCursor = arcpy.da.SearchCursor(gisShed, ["Id"])
+        gisPropertyShedSearchCursor = arcpy.da.SearchCursor(gisShed, ["Id"], "RecordStatus <> 'I'")
         for row in gisPropertyShedSearchCursor:
             # Add property shed IDs to an array
             gisPropertyShedIDsArray.append(str(row[0]).strip().rstrip().upper())
@@ -266,6 +311,11 @@ def mainFunction(gisProperty,gisShed,gisEntrance,gisPropertyEntranceRelate,gisPr
 
         # Delete cursor object
         del gisReportInsertCursor
+
+        # Insert row to say we are stopping
+        gisReportInsertCursor = arcpy.da.InsertCursor(gisDataSyncReport,["ID","Date","LogType","Description"])
+        gisReportInsertCursor.insertRow([0,datetime.datetime.now(),"STOP","The DW GIS Data Sync is stopping"])
+        del gisReportInsertCursor
         
         # --------------------------------------- End of code --------------------------------------- #  
             
@@ -304,7 +354,7 @@ def mainFunction(gisProperty,gisShed,gisEntrance,gisPropertyEntranceRelate,gisPr
             logger.handlers = []   
         if (sendErrorEmail == "true"):
             # Send email
-            sendEmail(errorMessage)
+            sendEmail("Error",errorMessage)
     # If python error
     except Exception as e:
         errorMessage = ""
@@ -324,18 +374,17 @@ def mainFunction(gisProperty,gisShed,gisEntrance,gisPropertyEntranceRelate,gisPr
             # Remove file handler and close log file        
             logMessage.flush()
             logMessage.close()
-            logger.handlers = []   
+            logger.handlers = []  
         if (sendErrorEmail == "true"):
             # Send email
-            sendEmail(errorMessage)            
+            sendEmail("Error",errorMessage)            
 # End of main function
-
 
 # Start of GIS property shed sync function
 def gisPropertyShedSync(gisdwPropertyID,gisPropertyDict,gisShed,gisPropertyShedRelate,gisshedEntranceRelate,gisPropertyShedArray,gisPropertyShedRelateDict,gisPropertyEntranceDict):
     global gisReportDict
     global gisReportCount
-    
+
     # Get the shed IDs related to the property from Data Warehouse
     gisShedIDs = []
     for key, value in gisPropertyShedRelateDict.iteritems():
@@ -411,18 +460,14 @@ def setLogging(logFile):
 
 
 # Start of send email function
-def sendEmail(message):
+def sendEmail(subject, message):
     # Send an email
     arcpy.AddMessage("Sending email...")
     # Server and port information
-    smtpServer = smtplib.SMTP("smtp.gmail.com",587) 
-    smtpServer.ehlo()
-    smtpServer.starttls() 
+    smtpServer = smtplib.SMTP("relay.livestock.org.nz",25) 
     smtpServer.ehlo
-    # Login with sender email address and password
-    smtpServer.login(emailUser, emailPassword)
     # Email content
-    header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
+    header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + ': ' + subject + '\n'
     body = header + '\n' + emailMessage + '\n' + '\n' + message
     # Send the email and close the connection
     smtpServer.sendmail(emailUser, emailTo, body)    
