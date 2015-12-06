@@ -57,6 +57,7 @@ def mainFunction(geodatabase,outputFile): # Get parameters from ArcGIS Desktop t
         featureDatasetList = arcpy.ListDatasets("", "Feature")
 
         # Loop through the feature datasets
+        datasetList = []
         for featureDataset in featureDatasetList:
             # Get a list of the feature classes in the feature dataset and add to list
             datasetList = arcpy.ListFeatureClasses("","",featureDataset)

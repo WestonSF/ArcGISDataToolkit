@@ -3,9 +3,9 @@
 # Purpose:    Creates a mortgage feature class by parcel and suburb based of LINZ parcels and encumbrance data.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    25/04/2014
-# Last Updated:    27/11/2015
+# Last Updated:    30/11/2015
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   ArcGIS for Desktop 10.3+ or ArcGIS Pro 1.1+
+# ArcGIS Version:   ArcGIS for Desktop 10.3+ or ArcGIS Pro 1.1+ (Need to be signed into a portal site)
 # Python Version:   2.7 or 3.4
 #--------------------------------
 
@@ -14,35 +14,40 @@ import os
 import sys
 import logging
 import smtplib
-import arcpy
 # Python version check
-if sys.version_info[0] < 3:
-    # Python 2.x
-    import urllib2
-else:
+if sys.version_info[0] >= 3:
     # Python 3.x
-    import urllib.request as urllib2    
-
-# Enable data to be overwritten
-arcpy.env.overwriteOutput = True
+    import urllib.request as urllib2
+else:
+    # Python 2.x
+    import urllib2 
+import arcpy
 
 # Set global variables
+# Logging
 enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
 logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
+# Email logging
 sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
 emailPassword = ""
 emailSubject = ""
 emailMessage = ""
+# Proxy
 enableProxy = "false"
 requestProtocol = "http" # http or https
 proxyURL = ""
+# Output
 output = None
+
+# Enable data to be overwritten
+arcpy.env.overwriteOutput = True
+
 
 # Start of main function
 def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,suburbsFeatureClass,extentFeatureClass,mortgageFeatureClass,mortgageSuburbsFeatureClass): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
-    try:
+    try:          
         # --------------------------------------- Start of code --------------------------------------- #
 
         # Set the banks
@@ -59,7 +64,7 @@ def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,subur
         else:        
             # Select parcel data
             arcpy.Select_analysis(parcelFeatureClass, os.path.join(arcpy.env.scratchGDB, "Parcel"), "")
-        
+
         # Select most recent mortgage record for each title
         arcpy.AddMessage("Getting the most recent mortgage records...")
         # Add unique ID
@@ -161,7 +166,6 @@ def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,subur
             # Remove file handler and close log file            
             logging.FileHandler.close(logMessage)
             logger.removeHandler(logMessage)
-        pass
     # If arcpy error
     except arcpy.ExecuteError:           
         # Build and show the error message
@@ -186,22 +190,20 @@ def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,subur
         for i in range(len(e.args)):
             if (i == 0):
                 # Python version check
-                if sys.version_info[0] < 3:
+                if sys.version_info[0] >= 3:
+                    # Python 3.x
+                    errorMessage = str(e.args[i]).encode('utf-8').decode('utf-8')                 
+                else:
                     # Python 2.x
                     errorMessage = unicode(e.args[i]).encode('utf-8')
-                else:
-                    # Python 3.x
-                    errorMessage = str(e.args[i]).encode('utf-8')
             else:
                 # Python version check
-                if sys.version_info[0] < 3:
-                    # Python 2.x
-                    errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
-                else:
+                if sys.version_info[0] >= 3:
                     # Python 3.x
-                    errorMessage = errorMessage + " " + str(e.args[i]).encode('utf-8')
-                    
-                
+                    errorMessage = errorMessage + " " + str(e.args[i]).encode('utf-8').decode('utf-8')
+                else:
+                    # Python 2.x
+                    errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')               
         arcpy.AddError(errorMessage)              
         # Logging
         if (enableLogging == "true"):

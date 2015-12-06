@@ -130,25 +130,28 @@ Syncronises data between the LIC data warehouse and GIS database, producing erro
 * Backup data to Google Drive
 * Download data from a map service or WFS layer.
 * Replicate datasets
+* Create mortgage datasets from LINZ.
 
 
 ## Requirements
 
-* ArcGIS for Desktop 10.0+
+* ArcGIS for Desktop 10.0/Python 2.6+
 	* Update from Zip
 	* Google Drive Upload
 	* Database Migration
 
-* ArcGIS for Desktop 10.1+
+* ArcGIS for Desktop 10.1/Python 2.7+
 	* Update from Link
 	* Update from CSV
 	* Web Data Upload
 	* Map Service Download
 	* WFS Layer Download
 	
+* ArcGIS for Desktop 10.3/Python 2.7+ or ArcGIS Pro 1.1/Python 3.4+ (Need to be signed into a portal site)
+	* LINZ Mortgage Data Import
 
 * Remote Server Data Update Requirements
-	* ArcGIS for Server 10.1+
+	* ArcGIS for Server 10.1/Python 2.7+
 	* FTP server setup on server
 	* Setup DataUpdateFromZip tool as Geoprocessing service with these parameters:
 		* Log File is a constant (defined when publishing tool)
@@ -190,9 +193,9 @@ Syncronises data between the LIC data warehouse and GIS database, producing erro
 * [GitHub](https://github.com/WestonSF)
 * [Twitter](https://twitter.com/Westonelli)
 * [Blog](http://westonelli.wordpress.com)
-* [ArcGIS API for Javascript](https://developers.arcgis.com/en/javascript)
 * [Python for ArcGIS](http://resources.arcgis.com/en/communities/python)
 * [Google Drive SDK](https://developers.google.com/drive/web)
+* [LINZ Data Service](https://data.linz.govt.nz)
 
 
 ## Issues
