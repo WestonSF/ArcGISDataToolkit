@@ -4,7 +4,7 @@
 #             the changeset and updating the data.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    09/05/2014
-# Last Updated:    14/08/2014
+# Last Updated:    09/12/2015
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.1+
 # Python Version:   2.7
@@ -15,6 +15,13 @@ import os
 import sys
 import logging
 import smtplib
+# Python version check
+if sys.version_info[0] > 3:
+    # Python 3.x
+    import urllib.request as urllib2
+else:
+    # Python 2.x
+    import urllib2  
 import arcpy
 import datetime
 import xml.etree.ElementTree as ET
@@ -24,27 +31,30 @@ import string
 arcpy.env.overwriteOutput = True
             
 # Set global variables
-enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
+# Logging
+enableLogging = "false" # Use within code - logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+logFile = "" # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
+# Email logging
 sendErrorEmail = "false"
+emailServerName = "" # e.g. smtp.gmail.com
+emailServerPort = 0 # e.g. 25
 emailTo = ""
 emailUser = ""
 emailPassword = ""
 emailSubject = ""
 emailMessage = ""
+# Proxy
+enableProxy = "false"
+requestProtocol = "http" # http or https
+proxyURL = ""
+# Output
 output = None
 
 # Start of main function
 def mainFunction(key,extent,ldsLayerID,ldsJoinField,downloadType,lastUpdateConfig,dataset,datasetJoinField): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
-        # Logging
-        if (enableLogging == "true"):
-            # Setup logging
-            logger, logMessage = setLogging(logFile)
-            # Log start of process
-            logger.info("Process started.")
-            
         # --------------------------------------- Start of code --------------------------------------- #         
+
         # If setting an extent for the data
         if (len(extent) > 0):
             extent = string.split(extent, ",")
@@ -232,10 +242,10 @@ def mainFunction(key,extent,ldsLayerID,ldsJoinField,downloadType,lastUpdateConfi
         if (enableLogging == "true"):
             # Log end of process
             logger.info("Process ended.")
-            # Remove file handler and close log file            
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
-        pass
+            # Remove file handler and close log file        
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []
     # If arcpy error
     except arcpy.ExecuteError:           
         # Build and show the error message
@@ -244,10 +254,13 @@ def mainFunction(key,extent,ldsLayerID,ldsJoinField,downloadType,lastUpdateConfi
         # Logging
         if (enableLogging == "true"):
             # Log error          
-            logger.error(errorMessage)                 
-            # Remove file handler and close log file
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
+            # Remove file handler and close log file        
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []   
         if (sendErrorEmail == "true"):
             # Send email
             sendEmail(errorMessage)
@@ -257,17 +270,32 @@ def mainFunction(key,extent,ldsLayerID,ldsJoinField,downloadType,lastUpdateConfi
         # Build and show the error message
         for i in range(len(e.args)):
             if (i == 0):
-                errorMessage = unicode(e.args[i]).encode('utf-8')
+                # Python version check
+                if sys.version_info[0] >= 3:
+                    # Python 3.x
+                    errorMessage = str(e.args[i]).encode('utf-8').decode('utf-8')
+                else:
+                    # Python 2.x
+                    errorMessage = unicode(e.args[i]).encode('utf-8')
             else:
-                errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
+                # Python version check
+                if sys.version_info[0] >= 3:
+                    # Python 3.x
+                    errorMessage = errorMessage + " " + str(e.args[i]).encode('utf-8').decode('utf-8')
+                else:
+                    # Python 2.x
+                    errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
         arcpy.AddError(errorMessage)              
         # Logging
         if (enableLogging == "true"):
             # Log error            
-            logger.error(errorMessage)               
-            # Remove file handler and close log file
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
+            # Remove file handler and close log file        
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []   
         if (sendErrorEmail == "true"):
             # Send email
             sendEmail(errorMessage)            
@@ -297,7 +325,7 @@ def sendEmail(message):
     # Send an email
     arcpy.AddMessage("Sending email...")
     # Server and port information
-    smtpServer = smtplib.SMTP("smtp.gmail.com",587) 
+    smtpServer = smtplib.SMTP(emailServerName,emailServerPort) 
     smtpServer.ehlo()
     smtpServer.starttls() 
     smtpServer.ehlo
@@ -319,5 +347,18 @@ if __name__ == '__main__':
     # Arguments are optional - If running from ArcGIS Desktop tool, parameters will be loaded into *argv
     argv = tuple(arcpy.GetParameterAsText(i)
         for i in range(arcpy.GetArgumentCount()))
+    # Logging
+    if (enableLogging == "true"):
+        # Setup logging
+        logger, logMessage = setLogging(logFile)
+        # Log start of process
+        logger.info("Process started.")
+    # Setup the use of a proxy for requests
+    if (enableProxy == "true"):
+        # Setup the proxy
+        proxy = urllib2.ProxyHandler({requestProtocol : proxyURL})
+        openURL = urllib2.build_opener(proxy)
+        # Install the proxy
+        urllib2.install_opener(openURL)
     mainFunction(*argv)
     
