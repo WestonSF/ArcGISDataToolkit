@@ -4,9 +4,9 @@
 #             stops connections to the geodatabase while the tool runs.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    07/08/2013
-# Last Updated:    13/08/2015
+# Last Updated:    18/12/2015
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.1+
+# ArcGIS Version:   ArcGIS for Desktop 10.1+
 # Python Version:   2.7
 #--------------------------------
 
@@ -15,24 +15,37 @@ import os
 import sys
 import logging
 import smtplib
+# Python version check
+if sys.version_info[0] >= 3:
+    # Python 3.x
+    import urllib.request as urllib2
+else:
+    # Python 2.x
+    import urllib2  
 import arcpy
 
-# Enable data to be overwritten
-arcpy.env.overwriteOutput = True
-
 # Set global variables
-enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
+# Logging
+enableLogging = "false" # Use within code - logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+logFile = "" # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
+# Email logging
 sendErrorEmail = "false"
+emailServerName = "" # e.g. smtp.gmail.com
+emailServerPort = 0 # e.g. 25
 emailTo = ""
 emailUser = ""
 emailPassword = ""
 emailSubject = ""
 emailMessage = ""
+# Proxy
 enableProxy = "false"
 requestProtocol = "http" # http or https
 proxyURL = ""
+# Output
 output = None
+
+# Enable data to be overwritten
+arcpy.env.overwriteOutput = True
 
 # Start of main function
 def mainFunction(geodatabase,disconnectUsers): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
@@ -43,15 +56,21 @@ def mainFunction(geodatabase,disconnectUsers): # Get parameters from ArcGIS Desk
         if (disconnectUsers == "true"):
             # Block any new connections to the geodatabase
             arcpy.AcceptConnections(geodatabase, False)
-            arcpy.AddMessage("Disconnecting all users from " + geodatabase + "...")            
+            arcpy.AddMessage("Disconnecting all users from " + geodatabase + "...")
+            # Logging
+            if (enableLogging == "true"):
+                logger.info("Disconnecting all users from " + geodatabase + "...")
             arcpy.DisconnectUser(geodatabase, "ALL")
         
         # Compress the geodatabase
-        arcpy.AddMessage("Compressing the database....")
+        arcpy.AddMessage("Compressing geodatabase - " + geodatabase + "...")
+        # Logging
+        if (enableLogging == "true"):
+            logger.info("Compressing geodatabase - " + geodatabase + "...")
         arcpy.env.workspace = geodatabase
         arcpy.Compress_management(geodatabase)
 
-        # Load in datsets to a list
+        # Load in datasets to a list
         dataList = arcpy.ListTables() + arcpy.ListFeatureClasses() + arcpy.ListDatasets()
         # Load in datasets from feature datasets to the list
         for dataset in arcpy.ListDatasets("", "Feature"):
@@ -69,11 +88,17 @@ def mainFunction(geodatabase,disconnectUsers): # Get parameters from ArcGIS Desk
 
         # Execute rebuild indexes
         arcpy.AddMessage("Rebuilding the indexes for all tables in the database....")
+        # Logging
+        if (enableLogging == "true"):
+            logger.info("Rebuilding the indexes for all tables in the database....")
         # Note: to use the "SYSTEM" option the workspace user must be an administrator.
         arcpy.RebuildIndexes_management(geodatabase, "SYSTEM", userDataList, "ALL")
         
         # Execute analyze datasets
         arcpy.AddMessage("Analyzing and updating the database statistics....")
+        # Logging
+        if (enableLogging == "true"):
+            logger.info("Analyzing and updating the database statistics....")
         # Note: to use the "SYSTEM" option the workspace user must be an administrator.
         arcpy.AnalyzeDatasets_management(geodatabase, "SYSTEM", userDataList, "ANALYZE_BASE","ANALYZE_DELTA","ANALYZE_ARCHIVE")
 
@@ -81,6 +106,9 @@ def mainFunction(geodatabase,disconnectUsers): # Get parameters from ArcGIS Desk
         if (disconnectUsers == "true"):
             # Allow any new connections to the geodatabase
             arcpy.AddMessage("Allowing all users to connect to " + geodatabase + "...")
+            # Logging
+            if (enableLogging == "true"):
+                logger.info("Allowing all users to connect to " + geodatabase + "...")
             arcpy.AcceptConnections(geodatabase, True)
             
         # --------------------------------------- End of code --------------------------------------- #  
@@ -99,18 +127,12 @@ def mainFunction(geodatabase,disconnectUsers): # Get parameters from ArcGIS Desk
         if (enableLogging == "true"):
             # Log end of process
             logger.info("Process ended.")
-            # Remove file handler and close log file            
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
-        pass
+            # Remove file handler and close log file        
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []
     # If arcpy error
-    except arcpy.ExecuteError:
-        # If disconnecting users
-        if (disconnectUsers == "true"):
-            # Allow any new connections to the geodatabase
-            arcpy.AddMessage("Allowing all users to connect to " + geodatabase + "...")            
-            arcpy.AcceptConnections(geodatabase, True)
-            
+    except arcpy.ExecuteError:           
         # Build and show the error message
         errorMessage = arcpy.GetMessages(2)   
         arcpy.AddError(errorMessage)           
@@ -120,27 +142,34 @@ def mainFunction(geodatabase,disconnectUsers): # Get parameters from ArcGIS Desk
             logger.error(errorMessage)
             # Log end of process
             logger.info("Process ended.")            
-            # Remove file handler and close log file
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
+            # Remove file handler and close log file        
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []   
         if (sendErrorEmail == "true"):
             # Send email
             sendEmail(errorMessage)
     # If python error
     except Exception as e:
-        # If disconnecting users
-        if (disconnectUsers == "true"):
-            # Allow any new connections to the geodatabase
-            arcpy.AddMessage("Allowing all users to connect to " + geodatabase + "...")            
-            arcpy.AcceptConnections(geodatabase, True)
-            
         errorMessage = ""
         # Build and show the error message
         for i in range(len(e.args)):
             if (i == 0):
-                errorMessage = unicode(e.args[i]).encode('utf-8')
+                # Python version check
+                if sys.version_info[0] >= 3:
+                    # Python 3.x
+                    errorMessage = str(e.args[i]).encode('utf-8').decode('utf-8')
+                else:
+                    # Python 2.x
+                    errorMessage = unicode(e.args[i]).encode('utf-8')
             else:
-                errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
+                # Python version check
+                if sys.version_info[0] >= 3:
+                    # Python 3.x
+                    errorMessage = errorMessage + " " + str(e.args[i]).encode('utf-8').decode('utf-8')
+                else:
+                    # Python 2.x
+                    errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
         arcpy.AddError(errorMessage)              
         # Logging
         if (enableLogging == "true"):
@@ -148,9 +177,10 @@ def mainFunction(geodatabase,disconnectUsers): # Get parameters from ArcGIS Desk
             logger.error(errorMessage)
             # Log end of process
             logger.info("Process ended.")            
-            # Remove file handler and close log file
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
+            # Remove file handler and close log file        
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []   
         if (sendErrorEmail == "true"):
             # Send email
             sendEmail(errorMessage)            
@@ -180,7 +210,7 @@ def sendEmail(message):
     # Send an email
     arcpy.AddMessage("Sending email...")
     # Server and port information
-    smtpServer = smtplib.SMTP("smtp.gmail.com",587) 
+    smtpServer = smtplib.SMTP(emailServerName,emailServerPort) 
     smtpServer.ehlo()
     smtpServer.starttls() 
     smtpServer.ehlo
@@ -216,5 +246,3 @@ if __name__ == '__main__':
         # Install the proxy
         urllib2.install_opener(openURL)
     mainFunction(*argv)
-    
-    
