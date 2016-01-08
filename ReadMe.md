@@ -2,6 +2,42 @@
 
 The ArcGIS Data Toolkit contains a number of tools and scripts to update and convert data from a varierty of different sources. The following tools are available:
 
+#### WFS Download
+Downloads a dataset from a WFS feed. Downloads data from the LINZ data service by either downloading the entire dataset for WFS or downloading the changeset and updating the data. Parameters required: 
+
+* URL TO WFS Server - e.g. "http://Servername/geoserver/wfs?key=xxx"
+* Layer/table ID - e.g. "layer-319" or "layer-319-changeset"
+* Data type - e.g. "Layer" or "Table"
+* Extent of data to download e.g. 1707030,5390440,1909170,5508180,EPSG:2193
+* Last update file e.g. "C:\Development\Python for ArcGIS Tools\ArcGIS Data Toolkit\Configuration\WFSDownload-LINZDataServiceRail.json"
+* WFS download type - e.g. "Shape-Zip", "CSV" or "JSON"
+* Output workspace - e.g. "C:\Temp\Scratch.gdb"
+* Dataset name - e.g. "FeatureClass"
+
+#### Geodatabase Maintenance
+Will compress geodatabase, update statistics and rebuild tables indexes. Optionally stops connections to the geodatabase while the tool runs.
+
+#### Runtime Data to File Geodatabase
+Converts all runtime data used in ArcGIS Runtime products (.geodatabase extension) to a file geodatabase.
+
+#### Map Service Download
+Downloads the data used in a map service layer by querying the json and converting to a feature class.
+
+#### FTP Upload
+Uploads a file to an FTP site.
+
+#### Remote Server Data Update
+This combines two of the above tools to update data on a remote web server. It consists of two geoporcessing tasks (one to be
+setup on the server and one to be setup where the data is located).
+
+* WebDataUpload will zip up datasets and upload them to the server via FTP
+* DataUpdateFromZip will unzip datasets and load them into the database on the server
+* WebDataUpload is the main script to be run and will call the DataUpdateFromZip tool via a geoprocessing service
+
+#### Web Data Upload
+Copies data to be replicated into geodatabase and zips this up. Zip file is then uploaded to FTP site 
+for loading into a geodatabase.
+
 #### Update from Link
 Downloads a zipped up file geodatabase from a download link. Updates data in a geodatabase from the zip file and 
 will update the datasets with the same name in the specified geodatabase.
@@ -14,8 +50,8 @@ update the datasets with the same name in the specified geodatabase. If dataset 
 Updates data in a geodatabase from a CSV file. Will get the latest zip CSV from update folder and 
 updates the dataset with the same name in the specified geodatabase.
 
-#### Geodatabase Maintenance
-Will compress geodatabase, update statistics and rebuild tables indexes. Optionally stops connections to the geodatabase while the tool runs.
+#### Geodatabase Documentation
+Documents a geodatabase by exporting feature class, table and domain information to a CSV file.
 
 #### Google Drive Upload
 Uploads a specified file or folder to Google Drive account. 
@@ -25,35 +61,8 @@ Then need authorisation code from here:
 * https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id={CLIENTID}&access_type=offline 
 There are then two options - Generate Credentials File or not. You will need to generate the credentials file the first time this is run.
 
-#### FTP Upload
-Uploads a file to an FTP site.
-
-#### Web Data Upload
-Copies data to be replicated into geodatabase and zips this up. Zip file is then uploaded to FTP site 
-for loading into a geodatabase.
-
-#### Remote Server Data Update
-This combines two of the above tools to update data on a remote web server. It consists of two geoporcessing tasks (one to be
-setup on the server and one to be setup where the data is located).
-
-* WebDataUpload will zip up datasets and upload them to the server via FTP
-* DataUpdateFromZip will unzip datasets and load them into the database on the server
-* WebDataUpload is the main script to be run and will call the DataUpdateFromZip tool via a geoprocessing service
-
 #### Convert to CSV
 Converts a table or feature class to a CSV file. Optionally adds in header and footer records also.
-
-#### Map Service Download
-Downloads the data used in a map service layer by querying the json and converting to a feature class.
-
-#### WFS Layer Download
-Downloads a dataset from a WFS feed. Parameters required: 
-
-* URL TO WFS Server - e.g. "http://Servername/geoserver/wfs?key=xxx" 
-* Layer/table name - e.g. "parcels" 
-* WFS download type - e.g. Shape-Zip 
-* Output workspace
-* Dataset name
 
 #### Database Replication
 Copies data from one geodatabase to another using a CSV file to map dataset names. Two update options:
@@ -93,9 +102,6 @@ Re-attachs an orphaned history dataset to its base dataset, by re-enabling archi
 #### Field Aliases Export and Import
 Exports field aliases for datasets specified to a CSV file. Can also use a configuration CSV file to import field aliases to datasets.
 
-#### LINZ Data Service Download
-Downloads the data  from the LINZ data service by either downloading the entire dataset for WFS or downloading the changeset and updating the data.
-
 #### LINZ Mortgage Data Import
 Creates a mortgage feature class by parcel and suburb based of LINZ parcels and encumbrance data.
 
@@ -108,14 +114,8 @@ Imports data from Census NZ stats relating to property and aggregates this data 
 #### Summit Forests Data Clean
 Cleans the Summit Forests GIS data by merging datasets and fixing up any issues.
 
-#### Geodatabase Documentation
-Documents a geodatabase by exporting feature class, table and domain information to a CSV file.
-
 #### NZAA ArchSite Data Download
 Downloads archaeological data from the NZAA ArchSite and loads it into a database. 
-
-#### Runtime Data to File Geodatabase
-Converts all runtime data used in ArcGIS Runtime products (.geodatabase extension) to a file geodatabase.
 
 #### Livestock Improvement Corporation Datawarehouse Sync
 Syncronises data between the LIC data warehouse and GIS database, producing error and change reports.      
@@ -209,7 +209,7 @@ Anyone and everyone is welcome to contribute.
 
 
 ## Licensing
-Copyright 2015 - Shaun Weston
+Copyright 2016 - Shaun Weston
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

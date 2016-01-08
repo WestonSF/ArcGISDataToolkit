@@ -11,7 +11,7 @@
 #             - Dataset name - e.g. "FeatureClass"
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    23/10/2015
-# Last Updated:    24/12/2015
+# Last Updated:    08/01/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.1+ or ArcGIS Pro 1.1+ (Need to be signed into a portal site)
 # Python Version:   2.7 or 3.4
@@ -61,7 +61,7 @@ proxyURL = ""
 output = None
 
 # Start of main function
-def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,wfsDownloadType,outputWorkspace,datasetName): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatasetID,targetDatasetID,wfsDownloadType,outputWorkspace,datasetName): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # --------------------------------------- Start of code --------------------------------------- #
 
@@ -193,6 +193,10 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,wfsDownloadType
             with open(downloadedFile, 'rt', encoding='utf-8') as csvFile:
                 numberRecords = sum(1 for row in csv.reader(csvFile, delimiter=csvDelimiter)) - 1
 
+            arcpy.AddMessage(str(numberRecords) + " records to load...")
+            if (enableLogging == "true"):
+                logger.info(str(numberRecords) + " records to load...")
+                
             # If there are some records
             if (numberRecords > 0):            
                 # Open the CSV file
@@ -266,7 +270,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,wfsDownloadType
                 # If a changeset is being requested
                 if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
                     # Apply changes to target dataset
-                    applyChangeset(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),os.path.join(outputWorkspace, datasetName))            
+                    applyChangeset(lastUpdateFile,str(currentDate),os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)            
                 # Full dataset
                 else:
                     arcpy.AddMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")                
@@ -295,6 +299,10 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,wfsDownloadType
             # Convert geometry (GeoJSON) to shape - For each feature in GeoJSON
             numberRecords = len(JSONData["features"])
 
+            arcpy.AddMessage(str(numberRecords) + " records to load...")
+            if (enableLogging == "true"):
+                logger.info(str(numberRecords) + " records to load...")
+                        
             # If there are some records
             if (numberRecords > 0):
                 count = 0
@@ -354,7 +362,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,wfsDownloadType
                 # If a changeset is being requested
                 if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
                     # Apply changes to target dataset
-                    applyChangeset(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),os.path.join(outputWorkspace, datasetName))
+                    applyChangeset(lastUpdateFile,str(currentDate),os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)
                 # Full dataset
                 else:
                     arcpy.AddMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")                
@@ -458,60 +466,60 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,wfsDownloadType
 
 
 # Start of apply changeset function
-def applyChangeset(changesetDataset,targetDataset):
+def applyChangeset(lastUpdateFile,currentDate,changesetDataset,targetDataset,changesetDatasetID,targetDatasetID):
     arcpy.AddMessage("Changeset dataset downloaded to " + changesetDataset + "...")                
     if (enableLogging == "true"):
         logger.info("Changeset dataset downloaded to " + changesetDataset + "...")
 
-##                    # Get number of records in the change dataset
-##                    recordsUpdate = arcpy.GetCount_management(changeDataset)
-##
-##                    # Setup the fields to query
-##                    deleteIDs = []
-##                    fields = ["__change__"]
-##                    fields.append(datasetJoinField)
-##                    # Open change dataset
-##                    with arcpy.da.SearchCursor(changeDataset,fields) as searchCursor: 
-##                        # For each row in the change dataset
-##                        for row in searchCursor:
-##                            changeID = row[1]
-##                            change = row[0]                       
-##                            # If this row is in the changes dataset and the update is delete or update
-##                            if ((change.lower() == "update") or (change.lower() == "delete")):
-##                                # Add the ID to the deletes list
-##                                deleteIDs.append(changeID)
-##                 
-##                    # Open dataset being updated
-##                    with arcpy.da.UpdateCursor(dataset,datasetJoinField) as updateCursor:
-##                        # For each row in the dataset
-##                        for row in updateCursor:
-##                            datasetID = row[0]
-##                            # If record is in delete list
-##                            if datasetID in deleteIDs:
-##                                # Delete the record from the dataset being updated
-##                                updateCursor.deleteRow()
-##
-##                    # Open change dataset
-##                    with arcpy.da.UpdateCursor(changeDataset,"__change__") as updateCursorChange:
-##                        # For each row in the change dataset
-##                        for row in updateCursorChange:
-##                            change = row[0]
-##                            # If this row is a delete
-##                            if (change.lower() == "delete"):
-##                                # Delete the record from the change dataset
-##                                updateCursorChange.deleteRow()
-##                                        
-##                    # Delete cursor objects
-##                    del updateCursor, updateCursorChange, searchCursor
-##
-##                    # Logging
-##                    if (enableLogging == "true"):
-##                        logger.info("Updating dataset - " + dataset + ": " + str(recordsUpdate) + " changed records...")
-##                    arcpy.AddMessage("Updating dataset - " + dataset + ": " + str(recordsUpdate) + " changed records...")
-##                
-##                    # Append in all the new data from the change dataset - All records with add or update
-##                    arcpy.Append_management(changeDataset, dataset, "NO_TEST", "", "")      
+    # Setup the fields to query
+    deleteIDs = []
+    fields = ["__change__"]
+    fields.append(changesetDatasetID)
+    
+    # Open change dataset - Find records to be deleted
+    with arcpy.da.SearchCursor(changesetDataset,fields) as searchCursor: 
+        # For each row in the change dataset
+        for row in searchCursor:
+            changeID = row[1]
+            change = row[0]                       
+            # If this row is in the changes dataset and the update is delete or update
+            if ((change.lower() == "update") or (change.lower() == "delete")):
+                # Add the ID to the deletes list
+                deleteIDs.append(changeID)
+              
+    # Open dataset being updated - Delete these records from the target dataset
+    with arcpy.da.UpdateCursor(targetDataset,targetDatasetID) as updateCursor:
+        # For each row in the dataset
+        for row in updateCursor:
+            datasetID = row[0]
+            # If record is in delete list
+            if datasetID in deleteIDs:
+                # Delete the record from the dataset being updated
+                updateCursor.deleteRow()
 
+    # Open change dataset - Delete the delete records
+    with arcpy.da.UpdateCursor(changesetDataset,"__change__") as updateCursorChange:
+        # For each row in the change dataset
+        for row in updateCursorChange:
+            change = row[0]
+            # If this row is a delete
+            if (change.lower() == "delete"):
+                # Delete the record from the change dataset
+                updateCursorChange.deleteRow()
+                          
+    # Delete cursor objects
+    del updateCursor, updateCursorChange, searchCursor
+
+    # Append in all the new data from the change dataset - All records with add or update, assuming all field names are the same
+    arcpy.Append_management(changesetDataset, targetDataset, "NO_TEST", "", "")
+
+    # Logging
+    arcpy.AddMessage("Applied changeset dataset to " + targetDataset + "...")
+    if (enableLogging == "true"):
+        logger.info("Applied changeset dataset to " + targetDataset + "...")
+
+    # Update changes config file
+    updateChangesConfig(lastUpdateFile,str(currentDate))
 # End of apply changeset function
 
 
