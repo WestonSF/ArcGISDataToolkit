@@ -11,7 +11,7 @@
 #             - Dataset name - e.g. "FeatureClass"
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    23/10/2015
-# Last Updated:    08/01/2016
+# Last Updated:    11/01/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.1+ or ArcGIS Pro 1.1+ (Need to be signed into a portal site)
 # Python Version:   2.7 or 3.4
@@ -477,6 +477,7 @@ def applyChangeset(lastUpdateFile,currentDate,changesetDataset,targetDataset,cha
     fields.append(changesetDatasetID)
     
     # Open change dataset - Find records to be deleted
+    arcpy.AddMessage("Identifying records to be deleted...")
     with arcpy.da.SearchCursor(changesetDataset,fields) as searchCursor: 
         # For each row in the change dataset
         for row in searchCursor:
@@ -485,15 +486,16 @@ def applyChangeset(lastUpdateFile,currentDate,changesetDataset,targetDataset,cha
             # If this row is in the changes dataset and the update is delete or update
             if ((change.lower() == "update") or (change.lower() == "delete")):
                 # Add the ID to the deletes list
-                deleteIDs.append(changeID)
+                deleteIDs.append(str(changeID))
               
     # Open dataset being updated - Delete these records from the target dataset
+    arcpy.AddMessage("Deleting records...")
     with arcpy.da.UpdateCursor(targetDataset,targetDatasetID) as updateCursor:
         # For each row in the dataset
         for row in updateCursor:
             datasetID = row[0]
             # If record is in delete list
-            if datasetID in deleteIDs:
+            if str(datasetID) in deleteIDs:
                 # Delete the record from the dataset being updated
                 updateCursor.deleteRow()
 
@@ -511,6 +513,7 @@ def applyChangeset(lastUpdateFile,currentDate,changesetDataset,targetDataset,cha
     del updateCursor, updateCursorChange, searchCursor
 
     # Append in all the new data from the change dataset - All records with add or update, assuming all field names are the same
+    arcpy.AddMessage("Loading in new records...")
     arcpy.Append_management(changesetDataset, targetDataset, "NO_TEST", "", "")
 
     # Logging
