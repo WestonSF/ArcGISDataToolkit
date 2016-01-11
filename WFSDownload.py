@@ -11,7 +11,7 @@
 #             - Dataset name - e.g. "FeatureClass"
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    23/10/2015
-# Last Updated:    11/01/2016
+# Last Updated:    12/01/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.1+ or ArcGIS Pro 1.1+ (Need to be signed into a portal site)
 # Python Version:   2.7 or 3.4
@@ -36,6 +36,7 @@ import uuid
 import csv
 import json
 import datetime
+import io
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -90,7 +91,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
             maxDaysChange = 30
             
             # Get the last updated date
-            with open(lastUpdateFile) as jsonFile:    
+            with io.open(lastUpdateFile) as jsonFile:    
                 jsonConfig = json.load(jsonFile)
                 lastUpdateDate = datetime.datetime.strptime(jsonConfig["lastUpdated"],"%Y-%m-%dT%H:%M:%S")
 
@@ -128,9 +129,16 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
         elif (wfsDownloadType.lower() == "csv"):
             fileType = ".csv"
         # JSON   
-        else: 
-            # Read json response
-            JSONData = json.loads(response.read().decode('utf8'))
+        else:
+            # Python version check
+            if sys.version_info[0] >= 3:
+                # Python 3.x
+                # Read json response
+                JSONData = json.loads(response.read().decode('utf8'))
+            else:
+                # Python 2.x
+                # Read json response
+                JSONData = json.loads(response.read())
 
         # Shape file or CSV
         if ((wfsDownloadType.lower() == "shape-zip") or (wfsDownloadType.lower() == "csv")):
@@ -190,8 +198,18 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
             csvDelimiter = ","
 
             # Count number of records in CSV
-            with open(downloadedFile, 'rt', encoding='utf-8') as csvFile:
-                numberRecords = sum(1 for row in csv.reader(csvFile, delimiter=csvDelimiter)) - 1
+            with io.open(downloadedFile, 'rt', encoding='utf-8') as csvFile:
+                # Python version check
+                if sys.version_info[0] >= 3:
+                    # Python 3.x
+                    numberRecords = sum(1 for row in csv.reader(csvFile, delimiter=csvDelimiter)) - 1
+                else:
+                    # Python 2.x
+                    # Read in CSV data as unicode
+                    def unicodeEncoder(csvData):
+                        for row in csvData:
+                            yield row.encode('utf-8')
+                    numberRecords = sum(1 for row in csv.reader(unicodeEncoder(csvFile), delimiter=csvDelimiter)) - 1
 
             arcpy.AddMessage(str(numberRecords) + " records to load...")
             if (enableLogging == "true"):
@@ -200,9 +218,18 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
             # If there are some records
             if (numberRecords > 0):            
                 # Open the CSV file
-                with open(downloadedFile, 'rt', encoding='utf-8') as csvFile:
-                    # Read the CSV file         
-                    rows = csv.reader(csvFile, delimiter=csvDelimiter)
+                with io.open(downloadedFile, 'rt', encoding='utf-8') as csvFile:
+                    # Python version check
+                    if sys.version_info[0] >= 3:
+                        # Python 3.x
+                        rows = csv.reader(csvFile, delimiter=csvDelimiter)
+                    else:
+                        # Python 2.x
+                        # Read in CSV data as unicode
+                        def unicodeEncoder(csvData):
+                            for row in csvData:
+                                yield row.encode('utf-8')
+                        rows = csv.reader(unicodeEncoder(csvFile), delimiter=csvDelimiter)
 
                     # For each row in the CSV
                     count = 0
@@ -248,11 +275,22 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                                         arcpy.AddField_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")), str(field.replace("-", "_")), "TEXT")
 
                             # Add the field values
+                            valueCount = 0
                             for value in row:
-                                if (("point" not in str(value).lower()) and ("polygon" not in str(value).lower()) and ("linestring" not in str(value).lower())):                            
+                                # If layer
+                                if (dataType.lower() == "layer"):
+                                    # Get the number of columns
+                                    columnLength = len(row)-1
+                                else:
+                                    # Get the number of columns
+                                    columnLength = len(row)
+                                    
+                                # If it's not the last column - geometry
+                                if (valueCount != columnLength):                            
                                     # Add each of the values to an array
                                     values.append(value)
-
+                                valueCount = valueCount + 1
+                                
                             if (dataType.lower() == "layer"):                  
                                 # Add in the geometry
                                 values.append(Geometry)
