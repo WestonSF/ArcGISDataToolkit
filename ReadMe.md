@@ -10,6 +10,8 @@ Downloads a dataset from a WFS feed. Downloads data from the LINZ data service b
 * Data type - e.g. "Layer" or "Table"
 * Extent of data to download e.g. 1707030,5390440,1909170,5508180,EPSG:2193
 * Last update file e.g. "C:\Development\Python for ArcGIS Tools\ArcGIS Data Toolkit\Configuration\WFSDownload-LINZDataServiceRail.json"
+* Changeset Dataset ID e.g. "id"
+* Output Dataset ID e.g. "id"
 * WFS download type - e.g. "Shape-Zip", "CSV" or "JSON"
 * Output workspace - e.g. "C:\Temp\Scratch.gdb"
 * Dataset name - e.g. "FeatureClass"

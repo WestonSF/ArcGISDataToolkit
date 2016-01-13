@@ -6,12 +6,14 @@
 #             - Data type - e.g. "Layer" or "Table"
 #             - Extent of data to download e.g. 1707030,5390440,1909170,5508180,EPSG:2193
 #             - Last update file e.g. "C:\Development\Python for ArcGIS Tools\ArcGIS Data Toolkit\Configuration\WFSDownload-LINZDataServiceRail.json"
+#             - Changeset Dataset ID e.g. "id"
+#             - Output Dataset ID e.g. "id"
 #             - WFS download type - e.g. "Shape-Zip", "CSV" or "JSON"
 #             - Output workspace - e.g. "C:\Temp\Scratch.gdb"
 #             - Dataset name - e.g. "FeatureClass"
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    23/10/2015
-# Last Updated:    12/01/2016
+# Last Updated:    13/01/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.1+ or ArcGIS Pro 1.1+ (Need to be signed into a portal site)
 # Python Version:   2.7 or 3.4
@@ -192,7 +194,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
             arcpy.AddMessage("Translating CSV file...")
 
             # Set the max size of the csv fields
-            csv.field_size_limit(1000000)
+            csv.field_size_limit(10000000)
 
             # Set CSV delimiter                         
             csvDelimiter = ","
@@ -252,54 +254,72 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                             if (dataType.lower() == "layer"):
                                 # Get the last column - geometry
                                 geometryWKT = row[len(row)-1]
-                                # Convert to Esri geometry
-                                Geometry = arcpy.FromWKT(geometryWKT,arcpy.SpatialReference(2193))
 
-                            # If it's the first feature, create new feature class
-                            if (count == 1):
-                                # If layer
-                                if (dataType.lower() == "layer"):
-                                    # Create temporary feature class to get shape type
-                                    arcpy.CopyFeatures_management(Geometry, "in_memory\outputDataset")                   
-                                    geometryType = arcpy.Describe("in_memory\outputDataset").shapeType
-                                    # Create new feature class
-                                    arcpy.CreateFeatureclass_management(arcpy.env.scratchGDB, wfsDataID.replace("-", "_"), geometryType, "", "", "", arcpy.SpatialReference(2193))
-                                # If table
-                                else:
-                                    # create new table
-                                    arcpy.CreateTable_management(arcpy.env.scratchGDB, wfsDataID.replace("-", "_"), "")
-
-                                # Add the fields
-                                for field in fields:
-                                    if (field.lower() != "shape@"):
-                                        arcpy.AddField_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")), str(field.replace("-", "_")), "TEXT")
-
-                            # Add the field values
-                            valueCount = 0
-                            for value in row:
-                                # If layer
-                                if (dataType.lower() == "layer"):
-                                    # Get the number of columns
-                                    columnLength = len(row)-1
-                                else:
-                                    # Get the number of columns
-                                    columnLength = len(row)
+                                # If geometry not null
+                                if (geometryWKT):
+                                    # Convert to Esri geometry
+                                    Geometry = arcpy.FromWKT(geometryWKT,arcpy.SpatialReference(2193))
                                     
-                                # If it's not the last column - geometry
-                                if (valueCount != columnLength):                            
-                                    # Add each of the values to an array
-                                    values.append(value)
-                                valueCount = valueCount + 1
-                                
-                            if (dataType.lower() == "layer"):                  
-                                # Add in the geometry
-                                values.append(Geometry)
+                            # If table or geometry not null
+                            if ((dataType.lower() == "table") or (geometryWKT)):    
+                                # If it's the first feature, create new feature class
+                                if (count == 1):
+                                    # If layer
+                                    if (dataType.lower() == "layer"):
+                                        # Create temporary feature class to get shape type
+                                        arcpy.CopyFeatures_management(Geometry, "in_memory\outputDataset")                   
+                                        geometryType = arcpy.Describe("in_memory\outputDataset").shapeType
+                                        # Create new feature class
+                                        arcpy.CreateFeatureclass_management(arcpy.env.scratchGDB, wfsDataID.replace("-", "_"), geometryType, "", "", "", arcpy.SpatialReference(2193))
+                                    # If table
+                                    else:
+                                        # create new table
+                                        arcpy.CreateTable_management(arcpy.env.scratchGDB, wfsDataID.replace("-", "_"), "")
 
-                            # Load it into existing feature class
-                            cursor = arcpy.da.InsertCursor(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),fields)
-                            cursor.insertRow(values)
+                                    # Add the fields
+                                    for field in fields:
+                                        if (field.lower() != "shape@"):
+                                            arcpy.AddField_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")), str(field.replace("-", "_")), "TEXT")
 
-                            arcpy.AddMessage("Loaded " + str(count) + " of " + str(numberRecords) + " records...")
+                                # Add the field values
+                                valueCount = 0
+                                for value in row:
+                                    # If layer
+                                    if (dataType.lower() == "layer"):
+                                        # Get the number of columns
+                                        columnLength = len(row)-1
+                                    else:
+                                        # Get the number of columns
+                                        columnLength = len(row)
+                                        
+                                    # If it's not the last column - geometry
+                                    if (valueCount != columnLength):                            
+                                        # Add each of the values to an array
+                                        values.append(value)
+                                    valueCount = valueCount + 1
+                                    
+                                if (dataType.lower() == "layer"):
+                                    # If geometry not null
+                                    if (geometryWKT):
+                                        # Add in the geometry
+                                        values.append(Geometry)             
+                                    # Blank geometry
+                                    else:
+                                        # Create a blank geometry
+                                        if (geometryType.lower() == "point"):    
+                                            Geometry = arcpy.PointGeometry(arcpy.Point(None))
+                                        if (geometryType.lower() == "polygon"):
+                                            Geometry = arcpy.Polygon(arcpy.Array(None))
+                                        else:
+                                            Geometry = arcpy.Polyline(arcpy.Array(None))
+                                        # Add in the geometry
+                                        values.append(Geometry)
+
+                                # Load it into existing feature class
+                                cursor = arcpy.da.InsertCursor(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),fields)
+                                cursor.insertRow(values)
+
+                                arcpy.AddMessage("Loaded " + str(count) + " of " + str(numberRecords) + " records...")
                         
                         count = count + 1
                 # Delete cursor
@@ -348,10 +368,12 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                 for feature in JSONData["features"]:
                     values = []
 
-                    if (dataType.lower() == "layer"):
-                        # Convert to Esri geometry
-                        Geometry = arcpy.AsShape(feature["geometry"])
-
+                    if (dataType.lower() == "layer"):         
+                        # If geometry not null
+                        if (feature["geometry"]):
+                            # Convert to Esri geometry
+                            Geometry = arcpy.AsShape(feature["geometry"])
+                            
                     # If it's the first feature, create new feature class
                     if (count == 0):
                         # Get the fields
@@ -383,9 +405,22 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                             # Add each of the values to an array
                             values.append(feature["properties"][field])
 
-                    if (dataType.lower() == "layer"):            
-                        # Add in the geometry
-                        values.append(Geometry)
+                    if (dataType.lower() == "layer"):
+                        # If geometry not null
+                        if (feature["geometry"]):
+                            # Add in the geometry
+                            values.append(Geometry)             
+                        # Blank geometry
+                        else:
+                            # Create a blank geometry
+                            if (geometryType.lower() == "point"):    
+                                Geometry = arcpy.PointGeometry(arcpy.Point(None))
+                            if (geometryType.lower() == "polygon"):
+                                Geometry = arcpy.Polygon(arcpy.Array(None))
+                            else:
+                                Geometry = arcpy.Polyline(arcpy.Array(None))
+                            # Add in the geometry
+                            values.append(Geometry)
 
                     # Load it into existing feature class
                     cursor = arcpy.da.InsertCursor(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),fields)
@@ -396,7 +431,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                     arcpy.AddMessage("Loaded " + str(count) + " of " + str(numberRecords) + " records...")
                 # Delete cursor
                 del cursor
-
+                
                 # If a changeset is being requested
                 if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
                     # Apply changes to target dataset
