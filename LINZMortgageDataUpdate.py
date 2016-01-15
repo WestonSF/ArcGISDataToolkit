@@ -1,9 +1,12 @@
 #-------------------------------------------------------------
-# Name:       LINZ Mortgage Data Import
-# Purpose:    Creates a mortgage feature class by parcel and suburb based of LINZ parcels and encumbrance data.
+# Name:       LINZ Mortgage Data Update
+# Purpose:    Creates a mortgage feature class by parcel and suburb based of LINZ title parcels and memorial data including title owners.
+#             Input datasets from LINZ needed as input:
+#             - Memorials table - https://data.linz.govt.nz/table/1695-nz-title-memorials-list-including-mortgages-leases-easements
+#             - Property Titles (Including Owners) - https://data.linz.govt.nz/layer/805-nz-property-titles-including-owners
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    25/04/2014
-# Last Updated:    30/11/2015
+# Last Updated:    15/01/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.3+ or ArcGIS Pro 1.1+ (Need to be signed into a portal site)
 # Python Version:   2.7 or 3.4
@@ -29,6 +32,8 @@ enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example
 logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
 # Email logging
 sendErrorEmail = "false"
+emailServerName = "" # e.g. smtp.gmail.com
+emailServerPort = 0 # e.g. 25
 emailTo = ""
 emailUser = ""
 emailPassword = ""
@@ -46,64 +51,34 @@ arcpy.env.overwriteOutput = True
 
 
 # Start of main function
-def mainFunction(parcelFeatureClass,parcelTitleMatchTable,encumbranceTable,suburbsFeatureClass,extentFeatureClass,mortgageFeatureClass,mortgageSuburbsFeatureClass): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(propertyTitlesFeatureClass,memorialsTable,suburbsFeatureClass,mortgageFeatureClass,mortgageSuburbsFeatureClass): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:          
         # --------------------------------------- Start of code --------------------------------------- #
 
         # Set the banks
         banks = ["Auckland Savings Bank","Australia and New Zealand Banking Group","Australian Mutual Provident Society","Bank of New Zealand","Heartland Bank","Kiwibank","New Zealand Home Loans","PGG Wrightson","Rabobank","Southland Building Society","Sovereign","Taranaki Savings Bank","The Co-Operative Bank","Wairarapa Building Society","Welcome Home Loan","Westpac","Other"]
 
-        # Select out mortgage data
+        # Copy property titles and select out current mortgage data
         arcpy.AddMessage("Extracting mortgage data...")
-        arcpy.TableSelect_analysis(encumbranceTable, os.path.join(arcpy.env.scratchGDB, "Mortgage"), "instrument_type = 'Mortgage'")
-        arcpy.TableSelect_analysis(parcelTitleMatchTable, os.path.join(arcpy.env.scratchGDB, "ParcelTitleMatch"), "")
-        # If extent provided
-        if (extentFeatureClass):
-            # Clip parcel data
-            arcpy.Clip_analysis(parcelFeatureClass, extentFeatureClass, os.path.join(arcpy.env.scratchGDB, "Parcel"))
-        else:        
-            # Select parcel data
-            arcpy.Select_analysis(parcelFeatureClass, os.path.join(arcpy.env.scratchGDB, "Parcel"), "")
-
-        # Select most recent mortgage record for each title
-        arcpy.AddMessage("Getting the most recent mortgage records...")
-        # Add unique ID
-        arcpy.AddField_management(os.path.join(arcpy.env.scratchGDB, "Mortgage"), "FullID", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
-        arcpy.CalculateField_management(os.path.join(arcpy.env.scratchGDB, "Mortgage"), "FullID", "!title_no! + \" \" + !instrument_lodged_datetime!", "PYTHON_9.3", "")        
-        arcpy.Statistics_analysis(os.path.join(arcpy.env.scratchGDB, "Mortgage"), os.path.join(arcpy.env.scratchGDB, "MortgageRecent"), "instrument_lodged_datetime MAX", "title_no")
-        # Add unique ID
-        arcpy.AddField_management(os.path.join(arcpy.env.scratchGDB, "MortgageRecent"), "FullID", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
-        arcpy.CalculateField_management(os.path.join(arcpy.env.scratchGDB, "MortgageRecent"), "FullID", "!title_no! + \" \" + !MAX_instrument_lodged_datetime!", "PYTHON_9.3", "")
-        # Join on description text
-        arcpy.JoinField_management(os.path.join(arcpy.env.scratchGDB, "MortgageRecent"), "FullID", os.path.join(arcpy.env.scratchGDB, "Mortgage"), "FullID", "memorial_text")
+        arcpy.TableSelect_analysis(memorialsTable, os.path.join(arcpy.env.scratchGDB, "Mortgage"), "instrument_type = 'Mortgage' AND current = 'T'")
+        arcpy.Select_analysis(propertyTitlesFeatureClass, os.path.join(arcpy.env.scratchGDB, "PropertyTitles"), "")
 
         arcpy.AddMessage("Creating mortgage feature class...")
-        # Join parcel and title data
-        arcpy.MakeQueryTable_management(os.path.join(arcpy.env.scratchGDB, "Parcel") + ";" + os.path.join(arcpy.env.scratchGDB, "ParcelTitleMatch"), "ParcelTitlesLayer", "USE_KEY_FIELDS", "", "", "Parcel.id = ParcelTitleMatch.par_id")
-        arcpy.Select_analysis("ParcelTitlesLayer", os.path.join(arcpy.env.scratchGDB, "ParcelTitles"), "")
-        # Join parcel and mortgage data
-        arcpy.MakeQueryTable_management(os.path.join(arcpy.env.scratchGDB, "ParcelTitles") + ";" + os.path.join(arcpy.env.scratchGDB, "MortgageRecent"), "ParcelTitlesMortgageLayer", "USE_KEY_FIELDS", "", "", "ParcelTitles.ttl_title_ = MortgageRecent.title_no")
-        arcpy.Select_analysis("ParcelTitlesMortgageLayer", mortgageFeatureClass, "")
+        # Join property titles and mortgage data
+        arcpy.MakeQueryTable_management(os.path.join(arcpy.env.scratchGDB, "PropertyTitles") + ";" + os.path.join(arcpy.env.scratchGDB, "Mortgage"), "PropertyTitlesMortgageLayer", "USE_KEY_FIELDS", "", "", "PropertyTitles.title_no = Mortgage.title_no")
+        arcpy.Select_analysis("PropertyTitlesMortgageLayer", mortgageFeatureClass, "")
 
         # Cleaning up fields
         arcpy.AddMessage("Cleaning up fields...")
         arcpy.AddField_management(mortgageFeatureClass, "mortgage_provider", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
         # Calculating mortgage provider field from memorial text
         arcpy.CalculateField_management(mortgageFeatureClass, "mortgage_provider", "changeValue(!memorial_text!)", "PYTHON_9.3", "def changeValue(var):\\n  if \"ANZ\" in var:\\n    return \"Australia and New Zealand Banking Group\"\\n  if \"National Bank of New Zealand\" in var:\\n    return \"Australia and New Zealand Banking Group\"\\n  if \"Post Office Bank\" in var:\\n    return \"Australia and New Zealand Banking Group\"\\n  if \"Westpac\" in var:\\n    return \"Westpac\"\\n  if \"Home Mortgage Company\" in var:\\n    return \"Westpac\"\\n  if \"Trust Bank New Zealand\" in var:\\n    return \"Westpac\"\\n  if \"ASB\" in var:\\n    return \"Auckland Savings Bank\"\\n  if \"Bank of New Zealand\" in var:\\n    return \"Bank of New Zealand\"\\n  if \"Kiwibank\" in var:\\n    return \"Kiwibank\"\\n  if \"TSB\" in var:\\n    return \"Taranaki Savings Bank\"\\n  if \"Southland Building Society\" in var:\\n    return \"Southland Building Society\"\\n  if \"AMP\" in var:\\n    return \"Australian Mutual Provident Society\"\\n  if \"Rabobank\" in var:\\n    return \"Rabobank\"\\n  if \"Rabo Wrightson\" in var:\\n    return \"Rabobank\"\\n  if \"Countrywide\" in var:\\n    return \"Australia and New Zealand Banking Group\"\\n  if \"Mortgage Holding Trust\" in var:\\n    return \"Sovereign\"\\n  if \"Co-operative Bank\" in var:\\n    return \"The Co-Operative Bank\"\\n  if \"Co-Operative Bank\" in var:\\n    return \"The Co-Operative Bank\"\\n  if \"PSIS\" in var:\\n    return \"The Co-Operative Bank\"\\n  if \"New Zealand Home Lending\" in var:\\n    return \"New Zealand Home Loans\"\\n  if \"Wairarapa Building Society\" in var:\\n    return \"Wairarapa Building Society\"\\n  if \"PGG Wrightson\" in var:\\n    return \"PGG Wrightson\"\\n  if \"Heartland Bank\" in var:\\n    return \"Heartland Bank\"\\n  if \"Heartland Building Society\" in var:\\n    return \"Heartland Bank\"\\n  if \"Housing New Zealand\" in var:\\n    return \"Welcome Home Loan\"\\n  if \"Housing Corporation of New Zealand\" in var:\\n    return \"Welcome Home Loan\"\\n  else:\\n    return \"Other\"")
-        arcpy.DeleteField_management(mortgageFeatureClass, "id;appellation;affected_surveys;parcel_intent;topology_type;statutory_actions;titles;survey_area;OBJECTID_1;id_1;ttl_title_no;source;OBJECTID_12;FREQUENCY;FullID")
-        arcpy.AlterField_management(mortgageFeatureClass, "MAX_instrument_lodged_datetime", "date_lodged", "", "DATE", "8", "NULLABLE", "false")
-        arcpy.AlterField_management(mortgageFeatureClass, "memorial_text", "description", "", "TEXT", "18000", "NULLABLE", "false")
+        arcpy.DeleteField_management(mortgageFeatureClass, "id;spatial_extents_shared;OBJECTID_1;id_1;title_no_1;land_district_1")
         arcpy.AddField_management(mortgageFeatureClass, "land_area", "DOUBLE", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
         arcpy.CalculateField_management(mortgageFeatureClass, "land_area", "!SHAPE_Area!", "PYTHON_9.3", "")        
-
-        # If extent provided
-        if (extentFeatureClass):
-            # Clip suburbs data
-            arcpy.Clip_analysis(suburbsFeatureClass, extentFeatureClass, os.path.join(arcpy.env.scratchGDB, "Suburb"))
-            
-        else:        
-            # Select suburbs data
-            arcpy.Select_analysis(suburbsFeatureClass, os.path.join(arcpy.env.scratchGDB, "Suburb"), "")
+      
+        # Copy suburbs data
+        arcpy.Select_analysis(suburbsFeatureClass, os.path.join(arcpy.env.scratchGDB, "Suburb"), "")
        
         # Spatially join suburb info
         arcpy.AddMessage("Analysing mortgages by suburb...")
@@ -243,7 +218,7 @@ def sendEmail(message):
     # Send an email
     arcpy.AddMessage("Sending email...")
     # Server and port information
-    smtpServer = smtplib.SMTP("smtp.gmail.com",587) 
+    smtpServer = smtplib.SMTP(emailServerName,emailServerPort) 
     smtpServer.ehlo()
     smtpServer.starttls() 
     smtpServer.ehlo

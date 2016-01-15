@@ -104,8 +104,12 @@ Re-attachs an orphaned history dataset to its base dataset, by re-enabling archi
 #### Field Aliases Export and Import
 Exports field aliases for datasets specified to a CSV file. Can also use a configuration CSV file to import field aliases to datasets.
 
-#### LINZ Mortgage Data Import
-Creates a mortgage feature class by parcel and suburb based of LINZ parcels and encumbrance data.
+#### LINZ Mortgage Data Update
+Creates a mortgage feature class by parcel and suburb based of LINZ title parcels and memorial data including title owners.
+Input datasets from LINZ needed as input:
+
+* Memorials table - https://data.linz.govt.nz/table/1695-nz-title-memorials-list-including-mortgages-leases-easements
+* Property Titles (Including Owners) - https://data.linz.govt.nz/layer/805-nz-property-titles-including-owners
 
 #### MapInfo Data Import
 Imports all MapInfo data to a selected geodatabase. Takes a folder as input and will find all MapInfo files in this folder and subfolders. Requires data interoperability extension.
