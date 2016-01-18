@@ -13,7 +13,7 @@
 #             - Dataset name - e.g. "FeatureClass"
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    23/10/2015
-# Last Updated:    13/01/2016
+# Last Updated:    18/01/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.1+ or ArcGIS Pro 1.1+ (Need to be signed into a portal site)
 # Python Version:   2.7 or 3.4
@@ -328,7 +328,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                 # If a changeset is being requested
                 if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
                     # Apply changes to target dataset
-                    applyChangeset(lastUpdateFile,str(currentDate),os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)            
+                    applyChangeset(lastUpdateFile,str(currentDate),os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),outputWorkspace,os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)            
                 # Full dataset
                 else:
                     arcpy.AddMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")                
@@ -435,7 +435,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                 # If a changeset is being requested
                 if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
                     # Apply changes to target dataset
-                    applyChangeset(lastUpdateFile,str(currentDate),os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)
+                    applyChangeset(lastUpdateFile,str(currentDate),os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),outputWorkspace,os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)
                 # Full dataset
                 else:
                     arcpy.AddMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")                
@@ -539,7 +539,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
 
 
 # Start of apply changeset function
-def applyChangeset(lastUpdateFile,currentDate,changesetDataset,targetDataset,changesetDatasetID,targetDatasetID):
+def applyChangeset(lastUpdateFile,currentDate,changesetDataset,outputWorkspace,targetDataset,changesetDatasetID,targetDatasetID):
     arcpy.AddMessage("Changeset dataset downloaded to " + changesetDataset + "...")                
     if (enableLogging == "true"):
         logger.info("Changeset dataset downloaded to " + changesetDataset + "...")
@@ -560,7 +560,17 @@ def applyChangeset(lastUpdateFile,currentDate,changesetDataset,targetDataset,cha
             if ((change.lower() == "update") or (change.lower() == "delete")):
                 # Add the ID to the deletes list
                 deleteIDs.append(str(changeID))
-              
+
+    # Find whether target dataset is versioned or not
+    versionedDataset = arcpy.Describe(targetDataset).isVersioned
+    # If versioned
+    if versionedDataset is True:
+        # Start an edit session
+        arcpy.AddMessage("Starting an edit session...")
+        editSession = arcpy.da.Editor(outputWorkspace)
+        editSession.startEditing(False, True)
+        editSession.startOperation()
+
     # Open dataset being updated - Delete these records from the target dataset
     arcpy.AddMessage("Deleting records...")
     with arcpy.da.UpdateCursor(targetDataset,targetDatasetID) as updateCursor:
@@ -589,6 +599,13 @@ def applyChangeset(lastUpdateFile,currentDate,changesetDataset,targetDataset,cha
     arcpy.AddMessage("Loading in new records...")
     arcpy.Append_management(changesetDataset, targetDataset, "NO_TEST", "", "")
 
+    # If versioned
+    if versionedDataset is True:
+        # Stop the edit session and save the changes
+        arcpy.AddMessage("Stopping the edit session...")
+        editSession.stopOperation()
+        editSession.stopEditing(True)
+        
     # Logging
     arcpy.AddMessage("Applied changeset dataset to " + targetDataset + "...")
     if (enableLogging == "true"):
