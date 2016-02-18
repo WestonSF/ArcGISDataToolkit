@@ -5,60 +5,64 @@
 #             Existing Mode - Will only update datasets that have the same name and will delete and
 #             append records, so field names need to be the same.
 #             New Mode - Copies all datasets from the geodatabase and loads into geodatabase. Requires
-#             no locks on geodatabase.
+#             no locks on geodatabase. 
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    05/09/2013
-# Last Updated:    11/07/2014
+# Last Updated:    19/02/2016
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.1/10.2
+# ArcGIS Version:   ArcMap 10.1+
 # Python Version:   2.7
 #--------------------------------
 
-# Import modules and enable data to be overwritten
+# Import main modules
 import os
 import sys
 import logging
 import smtplib
-import urllib2
-import zipfile
-import uuid
-import glob
-import arcpy
-
-# Enable data to be overwritten
-arcpy.env.overwriteOutput = True
 
 # Set global variables
-enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = os.path.join(os.path.dirname(__file__), r"Logs\DataUpdateFromLink.log") # os.path.join(os.path.dirname(__file__), "Example.log")
+# Logging
+enableLogging = "false" # Use within code - logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+logFile = "" # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
+# Email logging
 sendErrorEmail = "false"
+emailServerName = "" # e.g. smtp.gmail.com
+emailServerPort = 0 # e.g. 25
 emailTo = ""
 emailUser = ""
 emailPassword = ""
 emailSubject = ""
 emailMessage = ""
+# Proxy
+enableProxy = "false"
+requestProtocol = "http" # http or https
+proxyURL = ""
+# Output
 output = None
+# ArcGIS desktop installed
+arcgisDesktop = "true"
+
+# If ArcGIS desktop installed
+if (arcgisDesktop == "true"):
+    # Import extra modules
+    import arcpy
+    # Enable data to be overwritten
+    arcpy.env.overwriteOutput = True
+# Python version check
+if sys.version_info[0] >= 3:
+    # Python 3.x
+    import urllib.request as urllib2
+else:
+    # Python 2.x
+    import urllib2  
+import zipfile
+import glob
+
 
 # Start of main function
 def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
-        # Logging
-        if (enableLogging == "true"):
-            # Setup logging
-            logger, logMessage = setLogging(logFile)
-            # Log start of process
-            logger.info("Process started.")
-
         # --------------------------------------- Start of code --------------------------------------- #
-
-        setProxy = "false"       
-        # Custom proxy
-        if (setProxy == "true"):
-            # Setup the proxy
-            proxy = urllib2.ProxyHandler({"http": ""})
-            openURL = urllib2.build_opener(proxy)
-            # Install the proxy
-            urllib2.install_opener(openURL)
     
         # Download the file from the link
         file = urllib2.urlopen(downloadLink)
@@ -137,14 +141,19 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
                         arcpy.AddWarning("Warning: " + os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")
                         # Logging
                         if (enableLogging == "true"):
-                            logger.warning(os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")                      
-        # --------------------------------------- End of code --------------------------------------- #  
-            
+                            logger.warning(os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")
+                            
+        # --------------------------------------- End of code --------------------------------------- #
         # If called from gp tool return the arcpy parameter   
         if __name__ == '__main__':
             # Return the output if there is any
             if output:
-                arcpy.SetParameterAsText(1, output)
+                # If ArcGIS desktop installed
+                if (arcgisDesktop == "true"):
+                    arcpy.SetParameterAsText(1, output)
+                # ArcGIS desktop not installed
+                else:
+                    return output 
         # Otherwise return the result          
         else:
             # Return the output if there is any
@@ -154,46 +163,85 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
         if (enableLogging == "true"):
             # Log end of process
             logger.info("Process ended.")
-            # Remove file handler and close log file            
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
-        pass
+            # Remove file handler and close log file        
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []
     # If arcpy error
     except arcpy.ExecuteError:           
         # Build and show the error message
         errorMessage = arcpy.GetMessages(2)   
-        arcpy.AddError(errorMessage)           
+        printMessage(errorMessage,"error")           
         # Logging
         if (enableLogging == "true"):
             # Log error          
-            logger.error(errorMessage)                 
-            # Remove file handler and close log file
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
+            # Remove file handler and close log file        
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []   
         if (sendErrorEmail == "true"):
             # Send email
             sendEmail(errorMessage)
     # If python error
     except Exception as e:
-        errorMessage = ""
+        errorMessage = ""         
         # Build and show the error message
-        for i in range(len(e.args)):
-            if (i == 0):
-                errorMessage = str(e.args[i])
-            else:
-                errorMessage = errorMessage + " " + str(e.args[i])
-        arcpy.AddError(errorMessage)              
+        # If many arguments
+        if (e.args):
+            for i in range(len(e.args)):        
+                if (i == 0):
+                    # Python version check
+                    if sys.version_info[0] >= 3:
+                        # Python 3.x
+                        errorMessage = str(e.args[i]).encode('utf-8').decode('utf-8')
+                    else:
+                        # Python 2.x
+                        errorMessage = unicode(e.args[i]).encode('utf-8')
+                else:
+                    # Python version check
+                    if sys.version_info[0] >= 3:
+                        # Python 3.x
+                        errorMessage = errorMessage + " " + str(e.args[i]).encode('utf-8').decode('utf-8')
+                    else:
+                        # Python 2.x
+                        errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
+        # Else just one argument
+        else:
+            errorMessage = e
+        printMessage(errorMessage,"error")
         # Logging
         if (enableLogging == "true"):
             # Log error            
-            logger.error(errorMessage)               
-            # Remove file handler and close log file
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
+            logger.error(errorMessage)
+            # Log end of process
+            logger.info("Process ended.")            
+            # Remove file handler and close log file        
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []   
         if (sendErrorEmail == "true"):
             # Send email
             sendEmail(errorMessage)            
 # End of main function
+
+
+# Start of print message function
+def printMessage(message,type):
+    # If ArcGIS desktop installed
+    if (arcgisDesktop == "true"):
+        if (type.lower() == "warning"):
+            arcpy.AddWarning(message)
+        elif (type.lower() == "error"):
+            arcpy.AddError(message)
+        else:
+            arcpy.AddMessage(message)
+    # ArcGIS desktop not installed
+    else:
+        print(message)
+# End of print message function
 
 
 # Start of set logging function
@@ -219,7 +267,7 @@ def sendEmail(message):
     # Send an email
     arcpy.AddMessage("Sending email...")
     # Server and port information
-    smtpServer = smtplib.SMTP("smtp.gmail.com",587) 
+    smtpServer = smtplib.SMTP(emailServerName,emailServerPort) 
     smtpServer.ehlo()
     smtpServer.starttls() 
     smtpServer.ehlo
@@ -239,6 +287,26 @@ def sendEmail(message):
 # another script
 if __name__ == '__main__':
     # Arguments are optional - If running from ArcGIS Desktop tool, parameters will be loaded into *argv
-    argv = tuple(arcpy.GetParameterAsText(i)
-        for i in range(arcpy.GetArgumentCount()))
+    # If ArcGIS desktop installed
+    if (arcgisDesktop == "true"):
+        argv = tuple(arcpy.GetParameterAsText(i)
+            for i in range(arcpy.GetArgumentCount()))
+    # ArcGIS desktop not installed
+    else:
+        argv = sys.argv
+        # Delete the first argument, which is the script
+        del argv[0] 
+    # Logging
+    if (enableLogging == "true"):
+        # Setup logging
+        logger, logMessage = setLogging(logFile)
+        # Log start of process
+        logger.info("Process started.")
+    # Setup the use of a proxy for requests
+    if (enableProxy == "true"):
+        # Setup the proxy
+        proxy = urllib2.ProxyHandler({requestProtocol : proxyURL})
+        openURL = urllib2.build_opener(proxy)
+        # Install the proxy
+        urllib2.install_opener(openURL)
     mainFunction(*argv)
