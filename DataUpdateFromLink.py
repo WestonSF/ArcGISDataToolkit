@@ -97,52 +97,65 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
             for eachFeatureclass in featureclassList:
                # Create a Describe object from the dataset
                describeDataset = arcpy.Describe(eachFeatureclass)
+               # If feature dataset provided, add that to path
+               if featureDataset:
+                   outputDataset = os.path.join(geodatabase + "\\" + featureDataset, describeDataset.name)
+               else:
+                   outputDataset = os.path.join(geodatabase, describeDataset.name)
+               exportData = "true"
                # If update mode is then copy, otherwise delete and appending records                
                if (updateMode == "New"):
                    # Copy feature class into geodatabase using the same dataset name
-                   # If feature dataset provided, add that to path
-                   if featureDataset:
-                      arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(geodatabase + "\\" + featureDataset, describeDataset.name), "", "0", "0", "0")                                      
-                   else:
-                      arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(geodatabase, describeDataset.name), "", "0", "0", "0")
+                   arcpy.CopyFeatures_management(eachFeatureclass, outputDataset, "", "0", "0", "0")
                else:
                     # If dataset exists in geodatabase, delete features and load in new data
-                    if arcpy.Exists(os.path.join(geodatabase, eachFeatureclass)):
-                        # If feature dataset provided, add that to path
-                        if featureDataset:
-                            arcpy.DeleteFeatures_management(os.path.join(geodatabase + "\\" + featureDataset, eachFeatureclass))
-                            arcpy.Append_management(os.path.join(arcpy.env.workspace, eachFeatureclass), os.path.join(geodatabase + "//" + featureDataset, eachFeatureclass), "NO_TEST", "", "")                            
-                        else:
-                            arcpy.DeleteFeatures_management(os.path.join(geodatabase, eachFeatureclass))
-                            arcpy.Append_management(os.path.join(arcpy.env.workspace, eachFeatureclass), os.path.join(geodatabase, eachFeatureclass), "NO_TEST", "", "")
+                    if arcpy.Exists(outputDataset):
+                        arcpy.DeleteFeatures_management(outputDataset)
+                        arcpy.Append_management(os.path.join(arcpy.env.workspace, eachFeatureclass), outputDataset, "NO_TEST", "", "")
                     else:
+                        exportData = "false"
                         # Log warning
-                        arcpy.AddWarning("Warning: " + os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated")
+                        arcpy.AddWarning("Warning: " + outputDataset + " does not exist and won't be updated")
                         # Logging
                         if (enableLogging == "true"):
-                            logger.warning(os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated")
-                            
+                            logger.warning(outputDataset + " does not exist and won't be updated")
+               if (exportData.lower() == "true"):                            
+                   datasetRecordCount = arcpy.GetCount_management(outputDataset)
+                   arcpy.AddMessage(str(outputDataset) + " record count - " + str(datasetRecordCount) + "...")       
+                   # Logging
+                   if (enableLogging == "true"):
+                       logger.info(str(outputDataset) + " record count - " + str(datasetRecordCount) + "...")
         if (len(tableList) > 0):    
             # Loop through of the tables
             for eachTable in tableList:
                # Create a Describe object from the dataset
                describeDataset = arcpy.Describe(eachTable)
+               outputDataset = os.path.join(geodatabase, describeDataset.name)
+               exportData = "true"
+               
                # If update mode is then copy, otherwise delete and appending records                
                if (updateMode == "New"):               
                    # Copy feature class into geodatabase using the same dataset name
-                   arcpy.TableSelect_analysis(eachTable, os.path.join(geodatabase, describeDataset.name), "")
+                   arcpy.TableSelect_analysis(eachTable, outputDataset, "")
                else:
                     # If dataset exists in geodatabase, delete features and load in new data
                     if arcpy.Exists(os.path.join(geodatabase, eachTable)):
                         arcpy.DeleteRows_management(os.path.join(geodatabase, eachTable))
-                        arcpy.Append_management(os.path.join(arcpy.env.workspace, eachTable), os.path.join(geodatabase, eachTable), "NO_TEST", "", "")
+                        arcpy.Append_management(os.path.join(arcpy.env.workspace, eachTable), outputDataset, "NO_TEST", "", "")
                     else:
+                        exportData = "false"
                         # Log warning
-                        arcpy.AddWarning("Warning: " + os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")
+                        arcpy.AddWarning("Warning: " + outputDataset + " does not exist and won't be updated")
                         # Logging
                         if (enableLogging == "true"):
-                            logger.warning(os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")
-                            
+                            logger.warning(outputDataset + " does not exist and won't be updated")
+               if (exportData.lower() == "true"):                             
+                   datasetRecordCount = arcpy.GetCount_management(outputDataset)
+                   arcpy.AddMessage(str(outputDataset) + " record count - " + str(datasetRecordCount) + "...")       
+                   # Logging
+                   if (enableLogging == "true"):
+                       logger.info(str(outputDataset) + " record count - " + str(datasetRecordCount) + "...")
+                
         # --------------------------------------- End of code --------------------------------------- #
         # If called from gp tool return the arcpy parameter   
         if __name__ == '__main__':
@@ -295,7 +308,7 @@ if __name__ == '__main__':
     else:
         argv = sys.argv
         # Delete the first argument, which is the script
-        del argv[0] 
+        del argv[0]
     # Logging
     if (enableLogging == "true"):
         # Setup logging
