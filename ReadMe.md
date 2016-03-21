@@ -6,12 +6,13 @@ The ArcGIS Data Toolkit contains a number of tools and scripts to update and con
 Downloads a dataset from a WFS feed. Downloads data from the LINZ data service by either downloading the entire dataset for WFS or downloading the changeset and updating the data. Parameters required: 
 
 * URL TO WFS Server - e.g. "http://Servername/geoserver/wfs?key=xxx"
+* WFS Server Version (optional) e.g. "2.0.0", "1.1.0" or "1.0.0"
 * Layer/table ID - e.g. "layer-319" or "layer-319-changeset"
 * Data type - e.g. "Layer" or "Table"
-* Extent of data to download e.g. 1707030,5390440,1909170,5508180,EPSG:2193
-* Last update file e.g. "C:\Development\Python for ArcGIS Tools\ArcGIS Data Toolkit\Configuration\WFSDownload-LINZDataServiceRail.json"
-* Changeset Dataset ID e.g. "id"
-* Output Dataset ID e.g. "id"
+* Dataset of extent of data to download (optional) e.g.  "C:\Temp\Scratch.gdb\FeatureClass"
+* Last update file (optional) e.g. "C:\Development\Python for ArcGIS Tools\ArcGIS Data Toolkit\Configuration\WFSDownload-LINZDataServiceRail.json"
+* Changeset Dataset ID (optional) e.g. "id"
+* Output Dataset ID (optional) e.g. "id"
 * WFS download type - e.g. "Shape-Zip", "CSV" or "JSON"
 * Output workspace - e.g. "C:\Temp\Scratch.gdb"
 * Dataset name - e.g. "FeatureClass"

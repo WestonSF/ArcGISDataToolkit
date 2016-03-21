@@ -2,50 +2,33 @@
 # Name:       WFS Download
 # Purpose:    Downloads a dataset from a WFS service. Parameters required:
 #             - URL TO WFS Server - e.g. "http://Servername/geoserver/wfs?key=xxx"
+#             - WFS Server Version (optional) e.g. "2.0.0", "1.1.0" or "1.0.0"
 #             - Layer/table ID - e.g. "layer-319" or "layer-319-changeset"
 #             - Data type - e.g. "Layer" or "Table"
-#             - Extent of data to download e.g. 1707030,5390440,1909170,5508180,EPSG:2193
-#             - Last update file e.g. "C:\Development\Python for ArcGIS Tools\ArcGIS Data Toolkit\Configuration\WFSDownload-LINZDataServiceRail.json"
-#             - Changeset Dataset ID e.g. "id"
-#             - Output Dataset ID e.g. "id"
+#             - Dataset of extent of data to download (optional) e.g.  "C:\Temp\Scratch.gdb\FeatureClass"
+#             - Last update file (optional) e.g. "C:\Development\Python for ArcGIS Tools\ArcGIS Data Toolkit\Configuration\WFSDownload-LINZDataServiceRail.json"
+#             - Changeset Dataset ID (optional) e.g. "id"
+#             - Output Dataset ID (optional) e.g. "id"
 #             - WFS download type - e.g. "Shape-Zip", "CSV" or "JSON"
 #             - Output workspace - e.g. "C:\Temp\Scratch.gdb"
 #             - Dataset name - e.g. "FeatureClass"
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    23/10/2015
-# Last Updated:    18/01/2016
+# Last Updated:    21/03/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.1+ or ArcGIS Pro 1.1+ (Need to be signed into a portal site)
 # Python Version:   2.7 or 3.4
 #--------------------------------
 
-# Import modules
+# Import main modules
 import os
 import sys
 import logging
 import smtplib
-# Python version check
-if sys.version_info[0] >= 3:
-    # Python 3.x
-    import urllib.request as urllib2
-else:
-    # Python 2.x
-    import urllib2  
-import arcpy
-import zipfile
-import glob
-import uuid
-import csv
-import json
-import datetime
-import io
 
-# Enable data to be overwritten
-arcpy.env.overwriteOutput = True
-            
 # Set global variables
 # Logging
-enableLogging = "false" # Use within code - logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+enableLogging = "false" # Use within code - logger.info("Example..."), logger.warning("Example..."), logger.error("Example...") and to print messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
 logFile = "" # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
 # Email logging
 sendErrorEmail = "false"
@@ -62,30 +45,53 @@ requestProtocol = "http" # http or https
 proxyURL = ""
 # Output
 output = None
+# ArcGIS desktop installed
+arcgisDesktop = "true"
+
+# If ArcGIS desktop installed
+if (arcgisDesktop == "true"):
+    # Import extra modules
+    import arcpy
+    # Enable data to be overwritten
+    arcpy.env.overwriteOutput = True
+# Python version check
+if sys.version_info[0] >= 3:
+    # Python 3.x
+    import urllib.request as urllib2
+else:
+    # Python 2.x
+    import urllib2
+import urllib
+import zipfile
+import glob
+import uuid
+import csv
+import json
+import datetime
+import io
+
 
 # Start of main function
-def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatasetID,targetDatasetID,wfsDownloadType,outputWorkspace,datasetName): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFile,changesetDatasetID,targetDatasetID,wfsDownloadType,outputWorkspace,datasetName): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # --------------------------------------- Start of code --------------------------------------- #
 
-        # Check the URL parameters
-        if "?" in wfsURL:
-            # If first parameter already provided
-            firstParameter = "&"
-        else:
-            firstParameter = "?"           
+        # Setup the parameters for the request
+        wfsRequestDict = {}
+        wfsRequestDict['service'] = "wfs"
+        wfsRequestDict['request'] = "getfeature"     
+        wfsRequestDict['outputformat'] = "json"
+        wfsRequestDict['typename'] = wfsDataID  
 
-        # Setup the request URL
-        requestURL = wfsURL + firstParameter + "SERVICE=WFS&REQUEST=GetFeature&TYPENAME=" + wfsDataID
-        
-        # If setting an extent for the data
-        if ((len(extent) > 0) and (dataType.lower() == "layer")):
-            # Add the bounding box to the request
-            requestURL = requestURL + "&bbox=" + str(extent)
+        # If WFS version number provided
+        if wfsVersion:
+            # Setup the wfs version parameter
+            wfsRequestDict['version'] = wfsVersion
 
         # Set the spatial reference
         if (dataType.lower() == "layer"):
-            requestURL = requestURL + "&srsName=EPSG:2193"
+            # Setup the coordinate system parameter
+            wfsRequestDict['srsName'] = 'EPSG:2193'    
 
         # If a changeset is being requested
         if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
@@ -100,7 +106,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
             # Get the days between now and the last update
             lastUpdateChange = datetime.datetime.now() - lastUpdateDate
 
-            arcpy.AddMessage("Last update was " + str(lastUpdateChange.days) + " days ago...")
+            printMessage("Last update was " + str(lastUpdateChange.days) + " days ago...","info")
 
             # If last update date is less than the max days change variable
             if (lastUpdateChange.days <= maxDaysChange):
@@ -113,17 +119,40 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                 currentDate = (lastUpdateDate + datetime.timedelta(days=maxDaysChange)).strftime("%Y-%m-%dT%H:%M:%S")
                 lastUpdateDate = lastUpdateDate.strftime("%Y-%m-%dT%H:%M:%S")
          
-            # Setup the to and from dates for the changeset
-            requestURL = requestURL + "&viewparams=from:" + str(lastUpdateDate) + ";to:" + str(currentDate)          
+            # Setup the to and from dates for the viewparams parameter
+            wfsRequestDict['viewparams'] = "from:" + str(lastUpdateDate) + ";to:" + str(currentDate)  
 
-        # Set the output request parameter
-        requestURL = requestURL + "&outputformat=" + wfsDownloadType
+        # If setting an extent for the data
+        if (extentDataset) and (dataType.lower() == "layer"):
+            # Get the extent from the feature class
+            extentDataDesc = arcpy.Describe(extentDataset)
+            extent = extentDataDesc.extent
+            
+            # Setup the bbox parameter
+            wfsRequestDict['bbox'] = str(extent.XMin) + "," + str(extent.YMin) + "," + str(extent.XMax) + "," + str(extent.YMax) + ",EPSG:2193"
+
+        # Setup parameters encoding for export  
+        # Python version check
+        if sys.version_info[0] >= 3:
+            # Python 3.x
+            # Encode parameters
+            params = urllib.parse.urlencode(wfsRequestDict)
+        else:
+            # Python 2.x
+            # Encode parameters
+            params = urllib.urlencode(wfsRequestDict)
+        params = params.encode('utf-8')
 
         # -------------------- Downloading Data --------------------
-        arcpy.AddMessage("WFS request made - " + requestURL)
-        urllib2.urlopen(requestURL)
+        printMessage("WFS request made - " + wfsURL + "...","info")
+        printMessage("WFS request parameters - " + str(wfsRequestDict) + "...","info")
+        if (enableLogging == "true"):
+            logger.info("WFS request made - " + wfsURL)
+            logger.info("WFS request parameters - " + str(wfsRequestDict))            
+        # POST the WFS request
+        requestURL = urllib2.Request(wfsURL,params)
         response = urllib2.urlopen(requestURL)
-        
+
         # Shape file
         if (wfsDownloadType.lower() == "shape-zip"):
             fileType = ".zip"
@@ -145,7 +174,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
         # Shape file or CSV
         if ((wfsDownloadType.lower() == "shape-zip") or (wfsDownloadType.lower() == "csv")):
             # Download the data
-            arcpy.AddMessage("Downloading data...")
+            printMessage("Downloading data...","info")
             fileChunk = 16 * 1024
             downloadedFile = os.path.join(arcpy.env.scratchFolder, "Data-" + str(uuid.uuid1()) + fileType)
             with open(downloadedFile, 'wb') as file:
@@ -155,7 +184,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                     # If data size is small
                     if ((downloadCount == 0) and (len(chunk) < 1000)):
                         # Log error and end download
-                        arcpy.AddWarning("No data returned...")  
+                        printMessage("No data returned...","warning")  
                         if (enableLogging == "true"):
                             logger.warning("No data returned...")
                         # If a changeset
@@ -169,13 +198,13 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                     file.write(chunk)
                     downloadCount = downloadCount + 1
             file.close()
-            arcpy.AddMessage("Downloaded to " + downloadedFile + "...")
+            printMessage("Downloaded to " + downloadedFile + "...","info")
 
         # -------------------- Extracting Data --------------------
         # Shape file
         if (wfsDownloadType.lower() == "shape-zip"):
             # Unzip the file to the scratch folder
-            arcpy.AddMessage("Extracting zip file...")
+            printMessage("Extracting zip file...","info")
             zip = zipfile.ZipFile(downloadedFile, mode="r")
 
             zip.extractall(arcpy.env.scratchFolder)
@@ -184,14 +213,14 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
             extractedShp = max(glob.iglob(str(arcpy.env.scratchFolder) + r"\*.shp"), key=os.path.getmtime)
 
             # Copy to feature class
-            arcpy.AddMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")
+            printMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...","info")
             if (enableLogging == "true"):
                 logger.info("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")  
             arcpy.CopyFeatures_management(extractedShp, os.path.join(outputWorkspace, datasetName), "", "0", "0", "0")
         # CSV
         elif (wfsDownloadType.lower() == "csv"):
             # Unzip the file to the scratch folder
-            arcpy.AddMessage("Translating CSV file...")
+            printMessage("Translating CSV file...","info")
 
             # Set the max size of the csv fields
             csv.field_size_limit(10000000)
@@ -213,7 +242,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                             yield row.encode('utf-8')
                     numberRecords = sum(1 for row in csv.reader(unicodeEncoder(csvFile), delimiter=csvDelimiter)) - 1
 
-            arcpy.AddMessage(str(numberRecords) + " records to load...")
+            printMessage(str(numberRecords) + " records to load...","info")
             if (enableLogging == "true"):
                 logger.info(str(numberRecords) + " records to load...")
                 
@@ -270,16 +299,16 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                                         arcpy.CopyFeatures_management(Geometry, "in_memory\outputDataset")                   
                                         geometryType = arcpy.Describe("in_memory\outputDataset").shapeType
                                         # Create new feature class
-                                        arcpy.CreateFeatureclass_management(arcpy.env.scratchGDB, wfsDataID.replace("-", "_"), geometryType, "", "", "", arcpy.SpatialReference(2193))
+                                        arcpy.CreateFeatureclass_management(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_"), geometryType, "", "", "", arcpy.SpatialReference(2193))
                                     # If table
                                     else:
                                         # create new table
-                                        arcpy.CreateTable_management(arcpy.env.scratchGDB, wfsDataID.replace("-", "_"), "")
+                                        arcpy.CreateTable_management(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_"), "")
 
                                     # Add the fields
                                     for field in fields:
                                         if (field.lower() != "shape@"):
-                                            arcpy.AddField_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")), str(field.replace("-", "_")), "TEXT")
+                                            arcpy.AddField_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), str(field.replace("-", "_")), "TEXT")
 
                                 # Add the field values
                                 valueCount = 0
@@ -295,7 +324,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                                     # If it's not the last column - geometry
                                     if (valueCount != columnLength):                            
                                         # Add each of the values to an array
-                                        values.append(value)
+                                        values.append(str(value))
                                     valueCount = valueCount + 1
                                     
                                 if (dataType.lower() == "layer"):
@@ -316,10 +345,10 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                                         values.append(Geometry)
 
                                 # Load it into existing feature class
-                                cursor = arcpy.da.InsertCursor(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),fields)
+                                cursor = arcpy.da.InsertCursor(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")),fields)
                                 cursor.insertRow(values)
 
-                                arcpy.AddMessage("Loaded " + str(count) + " of " + str(numberRecords) + " records...")
+                                printMessage("Loaded " + str(count) + " of " + str(numberRecords) + " records...","info")
                         
                         count = count + 1
                 # Delete cursor
@@ -328,21 +357,21 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                 # If a changeset is being requested
                 if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
                     # Apply changes to target dataset
-                    applyChangeset(lastUpdateFile,str(currentDate),os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),outputWorkspace,os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)            
+                    applyChangeset(lastUpdateFile,str(currentDate),os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")),outputWorkspace,os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)            
                 # Full dataset
                 else:
-                    arcpy.AddMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")                
+                    printMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...","info")                
                     if (enableLogging == "true"):
                         logger.info("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")
                     # If layer
                     if (dataType.lower() == "layer"):                
-                        arcpy.CopyFeatures_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")), os.path.join(outputWorkspace, datasetName), "", "0", "0", "0")
+                        arcpy.CopyFeatures_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), os.path.join(outputWorkspace, datasetName), "", "0", "0", "0")
                     # If table
                     else:
-                        arcpy.Copy_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")), os.path.join(outputWorkspace, datasetName))  
+                        arcpy.Copy_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), os.path.join(outputWorkspace, datasetName))  
             # No records
             else:
-                arcpy.AddWarning("No data returned...")  
+                printMessage("No data returned...","warning")  
                 if (enableLogging == "true"):
                     logger.warning("No data returned...")
                 # If a changeset
@@ -352,12 +381,12 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                 sys.exit()
         # JSON
         else:      
-            arcpy.AddMessage("Translating JSON data...")       
+            printMessage("Translating JSON data...","info")       
 
             # Convert geometry (GeoJSON) to shape - For each feature in GeoJSON
             numberRecords = len(JSONData["features"])
 
-            arcpy.AddMessage(str(numberRecords) + " records to load...")
+            printMessage(str(numberRecords) + " records to load...","info")
             if (enableLogging == "true"):
                 logger.info(str(numberRecords) + " records to load...")
                         
@@ -387,29 +416,30 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                             # Create temporary feature class to get shape type
                             arcpy.CopyFeatures_management(Geometry, "in_memory\outputDataset")                   
                             geometryType = arcpy.Describe("in_memory\outputDataset").shapeType
+
                             # Create new feature class  
-                            arcpy.CreateFeatureclass_management(arcpy.env.scratchGDB, wfsDataID.replace("-", "_"), geometryType, "", "", "", arcpy.SpatialReference(2193))
+                            arcpy.CreateFeatureclass_management(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_"), geometryType, "", "", "", arcpy.SpatialReference(2193))
                         # If table
                         else:
                             # create new table
-                            arcpy.CreateTable_management(arcpy.env.scratchGDB, wfsDataID.replace("-", "_"), "")
+                            arcpy.CreateTable_management(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_"), "")
 
                         # Add the fields
                         for field in fields:
                             if (field.lower() != "shape@"):
-                                arcpy.AddField_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")), str(field.replace("-", "_")), "TEXT")
+                                arcpy.AddField_management(os.path.join(arcpy.env.scratchGDB,wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), str(field.replace("-", "_")), "TEXT")
 
                     # Add the field values
                     for field in fields:
                         if (field.lower() != "shape@"):
                             # Add each of the values to an array
-                            values.append(feature["properties"][field])
+                            values.append(str(feature["properties"][field]))
 
                     if (dataType.lower() == "layer"):
                         # If geometry not null
                         if (feature["geometry"]):
                             # Add in the geometry
-                            values.append(Geometry)             
+                            values.append(Geometry)
                         # Blank geometry
                         else:
                             # Create a blank geometry
@@ -423,47 +453,41 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
                             values.append(Geometry)
 
                     # Load it into existing feature class
-                    cursor = arcpy.da.InsertCursor(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),fields)
+                    cursor = arcpy.da.InsertCursor(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")),fields)
                     cursor.insertRow(values)
-                        
                     count = count + 1
 
-                    arcpy.AddMessage("Loaded " + str(count) + " of " + str(numberRecords) + " records...")
+                    printMessage("Loaded " + str(count) + " of " + str(numberRecords) + " records...","info")
                 # Delete cursor
                 del cursor
                 
                 # If a changeset is being requested
                 if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
                     # Apply changes to target dataset
-                    applyChangeset(lastUpdateFile,str(currentDate),os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")),outputWorkspace,os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)
+                    applyChangeset(lastUpdateFile,str(currentDate),os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")),outputWorkspace,os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)
                 # Full dataset
                 else:
-                    arcpy.AddMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")                
+                    printMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...","info")                
                     if (enableLogging == "true"):
                         logger.info("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")
                     # If layer
                     if (dataType.lower() == "layer"):                
-                        arcpy.CopyFeatures_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")), os.path.join(outputWorkspace, datasetName), "", "0", "0", "0")
+                        arcpy.CopyFeatures_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), os.path.join(outputWorkspace, datasetName), "", "0", "0", "0")
                     # If table
                     else:
-                        arcpy.Copy_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_")), os.path.join(outputWorkspace, datasetName))
+                        arcpy.Copy_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), os.path.join(outputWorkspace, datasetName))
                     
-        # --------------------------------------- End of code --------------------------------------- #  
-            # No records
-            else:
-                arcpy.AddWarning("No data returned...")  
-                if (enableLogging == "true"):
-                    logger.warning("No data returned...")
-                # If a changeset
-                if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
-                    # Update changes config file
-                    updateChangesConfig(lastUpdateFile,str(currentDate))
-                sys.exit()
+        # --------------------------------------- End of code --------------------------------------- #
         # If called from gp tool return the arcpy parameter   
         if __name__ == '__main__':
             # Return the output if there is any
             if output:
-                arcpy.SetParameterAsText(1, output)
+                # If ArcGIS desktop installed
+                if (arcgisDesktop == "true"):
+                    arcpy.SetParameterAsText(1, output)
+                # ArcGIS desktop not installed
+                else:
+                    return output 
         # Otherwise return the result          
         else:
             # Return the output if there is any
@@ -481,7 +505,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
     except arcpy.ExecuteError:           
         # Build and show the error message
         errorMessage = arcpy.GetMessages(2)   
-        arcpy.AddError(errorMessage)           
+        printMessage(errorMessage,"error")           
         # Logging
         if (enableLogging == "true"):
             # Log error          
@@ -521,7 +545,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
         # Else just one argument
         else:
             errorMessage = e
-        arcpy.AddError(errorMessage)
+        printMessage(errorMessage,"error")
         # Logging
         if (enableLogging == "true"):
             # Log error            
@@ -540,7 +564,7 @@ def mainFunction(wfsURL,wfsDataID,dataType,extent,lastUpdateFile,changesetDatase
 
 # Start of apply changeset function
 def applyChangeset(lastUpdateFile,currentDate,changesetDataset,outputWorkspace,targetDataset,changesetDatasetID,targetDatasetID):
-    arcpy.AddMessage("Changeset dataset downloaded to " + changesetDataset + "...")                
+    printMessage("Changeset dataset downloaded to " + changesetDataset + "...","info")                
     if (enableLogging == "true"):
         logger.info("Changeset dataset downloaded to " + changesetDataset + "...")
 
@@ -550,7 +574,7 @@ def applyChangeset(lastUpdateFile,currentDate,changesetDataset,outputWorkspace,t
     fields.append(changesetDatasetID)
     
     # Open change dataset - Find records to be deleted
-    arcpy.AddMessage("Identifying records to be deleted...")
+    printMessage("Identifying records to be deleted...","info")
     with arcpy.da.SearchCursor(changesetDataset,fields) as searchCursor: 
         # For each row in the change dataset
         for row in searchCursor:
@@ -566,13 +590,13 @@ def applyChangeset(lastUpdateFile,currentDate,changesetDataset,outputWorkspace,t
     # If versioned
     if versionedDataset is True:
         # Start an edit session
-        arcpy.AddMessage("Starting an edit session...")
+        printMessage("Starting an edit session...","info")
         editSession = arcpy.da.Editor(outputWorkspace)
         editSession.startEditing(False, True)
         editSession.startOperation()
 
     # Open dataset being updated - Delete these records from the target dataset
-    arcpy.AddMessage("Deleting records...")
+    printMessage("Deleting records...","info")
     with arcpy.da.UpdateCursor(targetDataset,targetDatasetID) as updateCursor:
         # For each row in the dataset
         for row in updateCursor:
@@ -602,12 +626,12 @@ def applyChangeset(lastUpdateFile,currentDate,changesetDataset,outputWorkspace,t
     # If versioned
     if versionedDataset is True:
         # Stop the edit session and save the changes
-        arcpy.AddMessage("Stopping the edit session...")
+        aprintMessage("Stopping the edit session...","info")
         editSession.stopOperation()
         editSession.stopEditing(True)
         
     # Logging
-    arcpy.AddMessage("Applied changeset dataset to " + targetDataset + "...")
+    printMessage("Applied changeset dataset to " + targetDataset + "...","info")
     if (enableLogging == "true"):
         logger.info("Applied changeset dataset to " + targetDataset + "...")
 
@@ -618,7 +642,7 @@ def applyChangeset(lastUpdateFile,currentDate,changesetDataset,outputWorkspace,t
 
 # Start of update changes config function
 def updateChangesConfig(configFile,date):
-    arcpy.AddMessage("Updating changes configuration file - " + configFile + "...")                
+    printMessage("Updating changes configuration file - " + configFile + "...","info")                
     if (enableLogging == "true"):
         logger.info("Updating changes configuration file - " + configFile + "...")
 
@@ -634,6 +658,22 @@ def updateChangesConfig(configFile,date):
     with open(configFile, "w") as jsonFile:
         jsonFile.write(json.dumps(data))
 # End of update changes config function
+
+
+# Start of print message function
+def printMessage(message,type):
+    # If ArcGIS desktop installed
+    if (arcgisDesktop == "true"):
+        if (type.lower() == "warning"):
+            arcpy.AddWarning(message)
+        elif (type.lower() == "error"):
+            arcpy.AddError(message)
+        else:
+            arcpy.AddMessage(message)
+    # ArcGIS desktop not installed
+    else:
+        print(message)
+# End of print message function
 
 
 # Start of set logging function
@@ -657,7 +697,7 @@ def setLogging(logFile):
 # Start of send email function
 def sendEmail(message):
     # Send an email
-    arcpy.AddMessage("Sending email...")
+    printMessage("Sending email...","info")
     # Server and port information
     smtpServer = smtplib.SMTP(emailServerName,emailServerPort) 
     smtpServer.ehlo()
@@ -679,8 +719,15 @@ def sendEmail(message):
 # another script
 if __name__ == '__main__':
     # Arguments are optional - If running from ArcGIS Desktop tool, parameters will be loaded into *argv
-    argv = tuple(arcpy.GetParameterAsText(i)
-        for i in range(arcpy.GetArgumentCount()))
+    # If ArcGIS desktop installed
+    if (arcgisDesktop == "true"):
+        argv = tuple(arcpy.GetParameterAsText(i)
+            for i in range(arcpy.GetArgumentCount()))
+    # ArcGIS desktop not installed
+    else:
+        argv = sys.argv
+        # Delete the first argument, which is the script
+        del argv[0] 
     # Logging
     if (enableLogging == "true"):
         # Setup logging
