@@ -14,7 +14,7 @@
 #             - Dataset name - e.g. "FeatureClass"
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    23/10/2015
-# Last Updated:    21/03/2016
+# Last Updated:    20/04/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.1+ or ArcGIS Pro 1.1+ (Need to be signed into a portal site)
 # Python Version:   2.7 or 3.4
@@ -80,7 +80,7 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
         wfsRequestDict = {}
         wfsRequestDict['service'] = "wfs"
         wfsRequestDict['request'] = "getfeature"     
-        wfsRequestDict['outputformat'] = "json"
+        wfsRequestDict['outputformat'] = wfsDownloadType.lower()
         wfsRequestDict['typename'] = wfsDataID  
 
         # If WFS version number provided
@@ -322,7 +322,14 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
                                         columnLength = len(row)
                                         
                                     # If it's not the last column - geometry
-                                    if (valueCount != columnLength):                            
+                                    if (valueCount != columnLength):
+                                        # Check length of field
+                                        fieldLength = len(value)
+                                        # Strip field length to be under 250
+                                        if (fieldLength > 250):
+                                            charsToStrip = fieldLength - 250
+                                            value = value[:-charsToStrip] + "..."
+
                                         # Add each of the values to an array
                                         values.append(str(value))
                                     valueCount = valueCount + 1
@@ -432,8 +439,23 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
                     # Add the field values
                     for field in fields:
                         if (field.lower() != "shape@"):
+                            # Python version check
+                            if sys.version_info[0] >= 3:
+                                # Python 3.x
+                                value = str(feature["properties"][field]).encode('utf-8').decode('utf-8')
+                            else:
+                                # Python 2.x
+                                value = unicode(feature["properties"][field]).encode('utf-8')
+    
+                            # Check length of field
+                            fieldLength = len(value)
+                            # Strip field length to be under 250
+                            if (fieldLength > 250):
+                                charsToStrip = fieldLength - 250
+                                value = value[:-charsToStrip] + "..."
+
                             # Add each of the values to an array
-                            values.append(str(feature["properties"][field]))
+                            values.append(str(value))
 
                     if (dataType.lower() == "layer"):
                         # If geometry not null
@@ -471,7 +493,7 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
                     if (enableLogging == "true"):
                         logger.info("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")
                     # If layer
-                    if (dataType.lower() == "layer"):                
+                    if (dataType.lower() == "layer"):
                         arcpy.CopyFeatures_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), os.path.join(outputWorkspace, datasetName), "", "0", "0", "0")
                     # If table
                     else:
