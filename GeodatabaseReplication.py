@@ -5,7 +5,7 @@
 #             New Mode - Copies data over (including archive datasets if needed). Requires no locks on geodatabase datasets being overwritten.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    10/04/2014
-# Last Updated:    20/08/2015
+# Last Updated:    07/07/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.1+
 # Python Version:   2.7
@@ -228,8 +228,8 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                     datasetCount = arcpy.GetCount_management(sourceDatasetPath)                   
                     # Check Dataset record count is more than 0
                     if (long(str(datasetCount)) > 0):
-                        # Don't include _H
-                        if ("_H" not in newDataset2):
+                        # Don't include _H - archive table
+                        if (newDataset2[-2:].lower() != "_h"):
                             # Don't include views if specified
                             if (("VW" not in newDataset2) and ("vw" not in newDataset2)) or ((("VW" in newDataset2) or ("vw" in newDataset2)) and (includeViews == "true")):
                                 # If dataset already exists when doing a data copy
@@ -379,8 +379,8 @@ def copyDatasets(sourceGeodatabase,destinationGeodatabase,datasetsOption,updateM
                     datasetCount = arcpy.GetCount_management(sourceDatasetPath)
                     # Check Dataset record count is more than 0
                     if (long(str(datasetCount)) > 0):
-                        # Don't include _H
-                        if ("_H" not in newDataset2):
+                        # Don't include _H - archive table
+                        if (newDataset2[-2:].lower() != "_h"):
                             # Don't include views if specified                         
                             if (("VW" not in newDataset2) and ("vw" not in newDataset2)) or ((("VW" in newDataset2) or ("vw" in newDataset2)) and (includeViews == "true")):                               
                                 # If feature dataset is necessary in destination database

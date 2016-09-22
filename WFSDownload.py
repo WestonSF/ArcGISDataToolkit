@@ -14,10 +14,10 @@
 #             - Dataset name - e.g. "FeatureClass"
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    23/10/2015
-# Last Updated:    20/04/2016
+# Last Updated:    22/09/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.1+ or ArcGIS Pro 1.1+ (Need to be signed into a portal site)
-# Python Version:   2.7 or 3.4
+# Python Version:   2.7.10+ or 3.4+
 #--------------------------------
 
 # Import main modules
@@ -69,12 +69,20 @@ import csv
 import json
 import datetime
 import io
+import ssl
 
 
 # Start of main function
 def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFile,changesetDatasetID,targetDatasetID,wfsDownloadType,outputWorkspace,datasetName): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # --------------------------------------- Start of code --------------------------------------- #
+
+        # Get the current record count of the dataset
+        if arcpy.Exists(os.path.join(outputWorkspace, datasetName)):
+            datasetCount = arcpy.GetCount_management(os.path.join(outputWorkspace, datasetName)) 
+            printMessage("Current dataset record count for " + datasetName + " - " + str(datasetCount),"info")
+            if (enableLogging == "true"):
+                logger.info("Current dataset record count for " + datasetName + " - " + str(datasetCount))
 
         # Setup the parameters for the request
         wfsRequestDict = {}
@@ -128,7 +136,7 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
             extentDataDesc = arcpy.Describe(extentDataset)
             extent = extentDataDesc.extent
             
-            # Setup the bbox parameter
+            # Setup the bbox parameter from the extent of the feature class
             wfsRequestDict['bbox'] = str(extent.XMin) + "," + str(extent.YMin) + "," + str(extent.XMax) + "," + str(extent.YMax) + ",EPSG:2193"
 
         # Setup parameters encoding for export  
@@ -150,8 +158,9 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
             logger.info("WFS request made - " + wfsURL)
             logger.info("WFS request parameters - " + str(wfsRequestDict))            
         # POST the WFS request
+        context = ssl._create_unverified_context()
         requestURL = urllib2.Request(wfsURL,params)
-        response = urllib2.urlopen(requestURL)
+        response = urllib2.urlopen(requestURL, context=context)
 
         # Shape file
         if (wfsDownloadType.lower() == "shape-zip"):
@@ -363,19 +372,48 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
 
                 # If a changeset is being requested
                 if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
+                    # Clip to the extent feature class if necessary
+                    scratchDataset = os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_"))
+                    if (extentDataset) and (dataType.lower() == "layer"):
+                        printMessage("Clipping dataset to extent...","info")
+                        if (enableLogging == "true"):
+                            logger.info("Clipping dataset to extent...")  
+                        scratchDataset = os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_") + "_Clip")
+                        arcpy.Clip_analysis(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), extentDataset, scratchDataset, "")
+
                     # Apply changes to target dataset
-                    applyChangeset(lastUpdateFile,str(currentDate),os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")),outputWorkspace,os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)            
+                    applyChangeset(lastUpdateFile,str(currentDate),scratchDataset,outputWorkspace,os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)
+
+                    # Get the new record count of the dataset
+                    datasetCount = arcpy.GetCount_management(os.path.join(outputWorkspace, datasetName)) 
+                    printMessage("New dataset record count for " + datasetName + " - " + str(datasetCount),"info")
+                    if (enableLogging == "true"):
+                        logger.info("New dataset record count for " + datasetName + " - " + str(datasetCount))   
                 # Full dataset
                 else:
                     printMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...","info")                
                     if (enableLogging == "true"):
                         logger.info("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")
                     # If layer
-                    if (dataType.lower() == "layer"):                
-                        arcpy.CopyFeatures_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), os.path.join(outputWorkspace, datasetName), "", "0", "0", "0")
+                    if (dataType.lower() == "layer"):
+                        # Clip to the extent feature class if necessary
+                        scratchDataset = os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_"))
+                        if (extentDataset) and (dataType.lower() == "layer"):
+                            printMessage("Clipping dataset to extent...","info")
+                            if (enableLogging == "true"):
+                                logger.info("Clipping dataset to extent...")  
+                            scratchDataset = os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_") + "_Clip")
+                            arcpy.Clip_analysis(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), extentDataset, scratchDataset, "")
+
+                        arcpy.CopyFeatures_management(scratchDataset, os.path.join(outputWorkspace, datasetName), "", "0", "0", "0")
                     # If table
                     else:
                         arcpy.Copy_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), os.path.join(outputWorkspace, datasetName))  
+                    # Get the new record count of the dataset
+                    datasetCount = arcpy.GetCount_management(os.path.join(outputWorkspace, datasetName)) 
+                    printMessage("New dataset record count for " + datasetName + " - " + str(datasetCount),"info")
+                    if (enableLogging == "true"):
+                        logger.info("New dataset record count for " + datasetName + " - " + str(datasetCount))    
             # No records
             else:
                 printMessage("No data returned...","warning")  
@@ -485,8 +523,23 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
                 
                 # If a changeset is being requested
                 if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
+                    # Clip to the extent feature class if necessary
+                    scratchDataset = os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_"))
+                    if (extentDataset) and (dataType.lower() == "layer"):
+                        printMessage("Clipping dataset to extent...","info")
+                        if (enableLogging == "true"):
+                            logger.info("Clipping dataset to extent...")                        
+                        scratchDataset = os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_") + "_Clip")
+                        arcpy.Clip_analysis(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), extentDataset, scratchDataset, "")
+
                     # Apply changes to target dataset
-                    applyChangeset(lastUpdateFile,str(currentDate),os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")),outputWorkspace,os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)
+                    applyChangeset(lastUpdateFile,str(currentDate),scratchDataset,outputWorkspace,os.path.join(outputWorkspace, datasetName),changesetDatasetID,targetDatasetID)
+
+                    # Get the new record count of the dataset
+                    datasetCount = arcpy.GetCount_management(os.path.join(outputWorkspace, datasetName)) 
+                    printMessage("New dataset record count for " + datasetName + " - " + str(datasetCount),"info")
+                    if (enableLogging == "true"):
+                        logger.info("New dataset record count for " + datasetName + " - " + str(datasetCount))    
                 # Full dataset
                 else:
                     printMessage("Copying to " + os.path.join(outputWorkspace, datasetName) + "...","info")                
@@ -494,11 +547,28 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
                         logger.info("Copying to " + os.path.join(outputWorkspace, datasetName) + "...")
                     # If layer
                     if (dataType.lower() == "layer"):
-                        arcpy.CopyFeatures_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), os.path.join(outputWorkspace, datasetName), "", "0", "0", "0")
+                        # Clip to the extent feature class if necessary
+                        scratchDataset = os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_"))
+                        if (extentDataset) and (dataType.lower() == "layer"):
+                            printMessage("Clipping dataset to extent...","info")
+                            if (enableLogging == "true"):
+                                logger.info("Clipping dataset to extent...")  
+                            scratchDataset = os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_") + "_Clip")
+                            arcpy.Clip_analysis(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), extentDataset, scratchDataset, "")
+
+                        # Copy over dataset
+                        arcpy.CopyFeatures_management(scratchDataset, os.path.join(outputWorkspace, datasetName), "", "0", "0", "0")
                     # If table
                     else:
                         arcpy.Copy_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), os.path.join(outputWorkspace, datasetName))
-                    
+                    # Get the new record count of the dataset
+                    datasetCount = arcpy.GetCount_management(os.path.join(outputWorkspace, datasetName)) 
+                    printMessage("New dataset record count for " + datasetName + " - " + str(datasetCount),"info")
+                    if (enableLogging == "true"):
+                        logger.info("New dataset record count for " + datasetName + " - " + str(datasetCount))
+
+        # Execute any custom updates needed on the data
+        customUpdates(datasetName)
         # --------------------------------------- End of code --------------------------------------- #
         # If called from gp tool return the arcpy parameter   
         if __name__ == '__main__':
@@ -582,6 +652,13 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
             # Send email
             sendEmail(errorMessage)            
 # End of main function
+
+
+# Start of custom updates function
+def customUpdates(datasetName):
+    ### Custom data update code goes here
+    printMessage("Optional custom updates to data...","info") 
+# End of custom updates function
 
 
 # Start of apply changeset function
