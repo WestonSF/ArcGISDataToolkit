@@ -10,7 +10,7 @@
 #             NOTE: If using ArcGIS 10.0 need to set scratch workspace as folder.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    31/05/2013
-# Last Updated:    09/03/2015
+# Last Updated:    17/11/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.0+
 # Python Version:   2.6/2.7
@@ -83,70 +83,113 @@ def mainFunction(updateFolder,updateMode,geodatabase): # Get parameters from Arc
         if (len(featureclassList) > 0):        
             # Loop through the feature classes
             for eachFeatureclass in featureclassList:
-               # Create a Describe object from the dataset
-               describeDataset = arcpy.Describe(eachFeatureclass)
-               # If update mode is then copy, otherwise delete and appending records                
-               if (updateMode == "New"):
-                   # Logging
-                   arcpy.AddMessage("Copying over feature class - " + os.path.join(geodatabase, eachFeatureclass) + "...")
-                   if (enableLogging == "true"):
-                      logger.info("Copying over feature class - " + os.path.join(geodatabase, eachFeatureclass) + "...")
-                            
-                   # Copy feature class into geodatabase using the same dataset name
-                   arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(geodatabase, describeDataset.name), "", "0", "0", "0")
+               # Get count of the source dataset
+               datasetCount = arcpy.GetCount_management(eachFeatureclass)                   
+               # Check Dataset record count is more than 0
+               if (long(str(datasetCount)) > 0):
+                   # Create a Describe object from the dataset
+                   describeDataset = arcpy.Describe(eachFeatureclass)
+                   # If update mode is then copy, otherwise delete and appending records                
+                   if (updateMode == "New"):
+                       # Logging
+                       arcpy.AddMessage("Copying over feature class - " + os.path.join(geodatabase, eachFeatureclass) + "...")
+                       if (enableLogging == "true"):
+                          logger.info("Copying over feature class - " + os.path.join(geodatabase, eachFeatureclass) + "...")
+                                
+                       # Copy feature class into geodatabase using the same dataset name
+                       arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(geodatabase, describeDataset.name), "", "0", "0", "0")
+
+                       # Get dataset count
+                       datasetCount = arcpy.GetCount_management(os.path.join(geodatabase, describeDataset.name)) 
+                       arcpy.AddMessage("Dataset record count - " + str(datasetCount))
+                       if (enableLogging == "true"):
+                           logger.info("Dataset record count - " + str(datasetCount))   
+                   else:
+                        # If dataset exists in geodatabase, delete features and load in new data
+                        if arcpy.Exists(os.path.join(geodatabase, eachFeatureclass)):
+                            # Logging
+                            arcpy.AddMessage("Updating feature class - " + os.path.join(geodatabase, eachFeatureclass) + "...")
+                            if (enableLogging == "true"):
+                               logger.info("Updating feature class - " + os.path.join(geodatabase, eachFeatureclass) + "...")
+             
+                            arcpy.DeleteFeatures_management(os.path.join(geodatabase, eachFeatureclass))
+                            arcpy.Append_management(os.path.join(arcpy.env.workspace, eachFeatureclass), os.path.join(geodatabase, eachFeatureclass), "NO_TEST", "", "")
+
+                            # Get dataset count
+                            datasetCount = arcpy.GetCount_management(os.path.join(geodatabase, eachFeatureclass)) 
+                            arcpy.AddMessage("Dataset record count - " + str(datasetCount))
+                            if (enableLogging == "true"):
+                               logger.info("Dataset record count - " + str(datasetCount))   
+                        else:
+                            # Log warning
+                            arcpy.AddWarning("Warning: " + os.path.join(geodatabase, eachFeatureclass) + " does not exist. Copying over...")
+                            # Logging
+                            if (enableLogging == "true"):
+                                logger.warning(os.path.join(geodatabase, eachFeatureclass) + " does not exist. Copying over...")
+                                
+                            # Copy feature class into geodatabase using the same dataset name
+                            arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(geodatabase, describeDataset.name), "", "0", "0", "0")
                else:
-                    # If dataset exists in geodatabase, delete features and load in new data
-                    if arcpy.Exists(os.path.join(geodatabase, eachFeatureclass)):
-                        # Logging
-                        arcpy.AddMessage("Updating feature class - " + os.path.join(geodatabase, eachFeatureclass) + "...")
-                        if (enableLogging == "true"):
-                           logger.info("Updating feature class - " + os.path.join(geodatabase, eachFeatureclass) + "...")
-         
-                        arcpy.DeleteFeatures_management(os.path.join(geodatabase, eachFeatureclass))
-                        arcpy.Append_management(os.path.join(arcpy.env.workspace, eachFeatureclass), os.path.join(geodatabase, eachFeatureclass), "NO_TEST", "", "")
-                    else:
-                        # Log warning
-                        arcpy.AddWarning("Warning: " + os.path.join(geodatabase, eachFeatureclass) + " does not exist. Copying over...")
-                        # Logging
-                        if (enableLogging == "true"):
-                            logger.warning(os.path.join(geodatabase, eachFeatureclass) + " does not exist. Copying over...")
-                            
-                        # Copy feature class into geodatabase using the same dataset name
-                        arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(geodatabase, describeDataset.name), "", "0", "0", "0")
-                       
+                   arcpy.AddWarning("Dataset " + eachFeatureclass + " is empty and won't be copied...")                        
+                   # Logging
+                   if (enableLogging == "true"):
+                       logger.warning("Dataset " + eachFeatureclass + " is empty and won't be copied...")
+
+                                                 
         if (len(tableList) > 0):    
             # Loop through of the tables
             for eachTable in tableList:
-               # Create a Describe object from the dataset
-               describeDataset = arcpy.Describe(eachTable)
-               # If update mode is then copy, otherwise delete and appending records                
-               if (updateMode == "New"):
-                   # Logging
-                   arcpy.AddMessage("Copying over table - " + os.path.join(geodatabase, eachTable) + "...")
-                   if (enableLogging == "true"):
-                      logger.info("Copying over table - " + os.path.join(geodatabase, eachTable) + "...")
-                      
-                   # Copy table into geodatabase using the same dataset name
-                   arcpy.TableSelect_analysis(eachTable, os.path.join(geodatabase, describeDataset.name), "")
+               # Get count of the source dataset
+               datasetCount = arcpy.GetCount_management(eachTable)                   
+               # Check Dataset record count is more than 0
+               if (long(str(datasetCount)) > 0):
+                   # Create a Describe object from the dataset
+                   describeDataset = arcpy.Describe(eachTable)
+                   # If update mode is then copy, otherwise delete and appending records                
+                   if (updateMode == "New"):
+                       # Logging
+                       arcpy.AddMessage("Copying over table - " + os.path.join(geodatabase, eachTable) + "...")
+                       if (enableLogging == "true"):
+                          logger.info("Copying over table - " + os.path.join(geodatabase, eachTable) + "...")
+                          
+                       # Copy table into geodatabase using the same dataset name
+                       arcpy.TableSelect_analysis(eachTable, os.path.join(geodatabase, describeDataset.name), "")
+
+                       # Get dataset count
+                       datasetCount = arcpy.GetCount_management(os.path.join(geodatabase, describeDataset.name)) 
+                       arcpy.AddMessage("Dataset record count - " + str(datasetCount))
+                       if (enableLogging == "true"):
+                           logger.info("Dataset record count - " + str(datasetCount))   
+                   else:
+                        # If dataset exists in geodatabase, delete features and load in new data
+                        if arcpy.Exists(os.path.join(geodatabase, eachTable)):
+                            # Logging
+                            arcpy.AddMessage("Updating table - " + os.path.join(geodatabase, eachTable) + "...")
+                            if (enableLogging == "true"):
+                               logger.info("Updating table - " + os.path.join(geodatabase, eachTable) + "...")
+
+                            arcpy.DeleteFeatures_management(os.path.join(geodatabase, eachTable))
+                            arcpy.Append_management(os.path.join(arcpy.env.workspace, eachTable), os.path.join(geodatabase, eachTable), "NO_TEST", "", "")
+
+                            # Get dataset count
+                            datasetCount = arcpy.GetCount_management(os.path.join(geodatabase, eachTable)) 
+                            arcpy.AddMessage("Dataset record count - " + str(datasetCount))
+                            if (enableLogging == "true"):
+                               logger.info("Dataset record count - " + str(datasetCount))   
+                        else:
+                            # Log warning
+                            arcpy.AddWarning("Warning: " + os.path.join(geodatabase, eachTable) + " does not exist. Copying over...")
+                            # Logging
+                            if (enableLogging == "true"):
+                                logger.warning(os.path.join(geodatabase, eachTable) + " does not exist. Copying over...")
+
+                            # Copy table into geodatabase using the same dataset name
+                            arcpy.TableSelect_analysis(eachTable, os.path.join(geodatabase, describeDataset.name), "")
                else:
-                    # If dataset exists in geodatabase, delete features and load in new data
-                    if arcpy.Exists(os.path.join(geodatabase, eachTable)):
-                        # Logging
-                        arcpy.AddMessage("Updating table - " + os.path.join(geodatabase, eachTable) + "...")
-                        if (enableLogging == "true"):
-                           logger.info("Updating table - " + os.path.join(geodatabase, eachTable) + "...")
-
-                        arcpy.DeleteFeatures_management(os.path.join(geodatabase, eachTable))
-                        arcpy.Append_management(os.path.join(arcpy.env.workspace, eachTable), os.path.join(geodatabase, eachTable), "NO_TEST", "", "")
-                    else:
-                        # Log warning
-                        arcpy.AddWarning("Warning: " + os.path.join(geodatabase, eachTable) + " does not exist. Copying over...")
-                        # Logging
-                        if (enableLogging == "true"):
-                            logger.warning(os.path.join(geodatabase, eachTable) + " does not exist. Copying over...")
-
-                        # Copy table into geodatabase using the same dataset name
-                        arcpy.TableSelect_analysis(eachTable, os.path.join(geodatabase, describeDataset.name), "")
+                   arcpy.AddWarning("Dataset " + eachTable + " is empty and won't be copied...")                        
+                   # Logging
+                   if (enableLogging == "true"):
+                       logger.warning("Dataset " + eachTable + " is empty and won't be copied...")             
         
         # --------------------------------------- End of code --------------------------------------- #  
             

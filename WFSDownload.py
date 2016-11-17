@@ -14,7 +14,7 @@
 #             - Dataset name - e.g. "FeatureClass"
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    23/10/2015
-# Last Updated:    22/09/2016
+# Last Updated:    26/09/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.1+ or ArcGIS Pro 1.1+ (Need to be signed into a portal site)
 # Python Version:   2.7.10+ or 3.4+
@@ -104,7 +104,7 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
         # If a changeset is being requested
         if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
             # Maximum number of days between a changeset to allow
-            maxDaysChange = 30
+            maxDaysChange = 60
             
             # Get the last updated date
             with io.open(lastUpdateFile) as jsonFile:    
@@ -251,9 +251,9 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
                             yield row.encode('utf-8')
                     numberRecords = sum(1 for row in csv.reader(unicodeEncoder(csvFile), delimiter=csvDelimiter)) - 1
 
-            printMessage(str(numberRecords) + " records to load...","info")
+            printMessage(str(numberRecords) + " records downloaded...","info")
             if (enableLogging == "true"):
-                logger.info(str(numberRecords) + " records to load...")
+                logger.info(str(numberRecords) + " records downloaded...")
                 
             # If there are some records
             if (numberRecords > 0):            
@@ -431,9 +431,9 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
             # Convert geometry (GeoJSON) to shape - For each feature in GeoJSON
             numberRecords = len(JSONData["features"])
 
-            printMessage(str(numberRecords) + " records to load...","info")
+            printMessage(str(numberRecords) + " records downloaded...","info")
             if (enableLogging == "true"):
-                logger.info(str(numberRecords) + " records to load...")
+                logger.info(str(numberRecords) + " records downloaded...")
                         
             # If there are some records
             if (numberRecords > 0):
@@ -657,7 +657,29 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
 # Start of custom updates function
 def customUpdates(datasetName):
     ### Custom data update code goes here
-    printMessage("Optional custom updates to data...","info") 
+    if (datasetName.lower() == "address"):
+        # Updating new fields needed for searching - Assumes new fields already added
+        arcpy.CalculateField_management("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\Cadastral.SDEADMIN.Address", "fullname", "!address! + \", \" + !locality!", "PYTHON_9.3", "")
+        # Rebuild locator
+        printMessage("Rebuilding address locator...","info")
+        arcpy.RebuildAddressLocator_geocoding("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\SDEADMIN.AddressLocator")       
+    if (datasetName.lower() == "road"):
+        # Updating new fields needed for searching - Assumes new fields already added
+        arcpy.CalculateField_management("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\Cadastral.SDEADMIN.Road", "fullname", "!name! + \", \" + !locality!", "PYTHON_9.3", "")
+        # Rebuild locator
+        printMessage("Rebuilding road locator...","info")
+        arcpy.RebuildAddressLocator_geocoding("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\SDEADMIN.RoadLocator")      
+    if (datasetName.lower() == "parcel"):       
+        # Merge Masterton, Carterton and South Wairarapa property into one feature class
+        arcpy.Merge_management("'" + "\\\\GISDATA\\Data\\Database Connections\\Administrator\\MDC_Core (Admin).sde\\MDC_Core.SDEADMIN.Property';'" + "\\\\GISDATA\\Data\\Database Connections\\Administrator\\CDC_Core (Admin).sde\\CDC_Core.SDEADMIN.Property';'" + "\\\\GISDATA\\Data\\Database Connections\\Administrator\\SWDC_Core (Admin).sde\\SWDC_Core.SDEADMIN.Property'", "\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\Cadastral.SDEADMIN.Property", "")
+        datasetCount = arcpy.GetCount_management("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\Cadastral.SDEADMIN.Property")
+        printMessage("New dataset record count for Property - " + str(datasetCount),"info")
+        if (enableLogging == "true"):
+            logger.info("New dataset record count for Property - " + str(datasetCount))                          
+        # Rebuild locators
+        printMessage("Rebuilding parcel and legal description locators...","info")
+        arcpy.RebuildAddressLocator_geocoding("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\SDEADMIN.LegalDescriptionLocator")    
+        arcpy.RebuildAddressLocator_geocoding("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\SDEADMIN.ParcelLocator")
 # End of custom updates function
 
 

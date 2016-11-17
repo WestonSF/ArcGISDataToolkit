@@ -8,7 +8,7 @@
 #             no locks on geodatabase. 
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    05/09/2013
-# Last Updated:    19/02/2016
+# Last Updated:    10/11/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcMap 10.1+
 # Python Version:   2.7
@@ -68,7 +68,11 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
         file = urllib2.urlopen(downloadLink)
         # Download in chunks
         fileChunk = 16 * 1024
-        with open(os.path.join(arcpy.env.scratchFolder, "Data.zip"), 'wb') as output:
+        
+        datasetFileName = "Data.zip"
+        if ".gdb" in downloadLink:
+            datasetFileName = "Data.gdb.zip"      
+        with open(os.path.join(arcpy.env.scratchFolder, datasetFileName), 'wb') as output:
             while True:
                 chunk = file.read(fileChunk)
                 if not chunk:
@@ -76,11 +80,14 @@ def mainFunction(downloadLink,updateMode,geodatabase,featureDataset): # Get para
                 # Write chunk to output file
                 output.write(chunk)
         output.close()
-        
+
         # Unzip the file to the scratch folder
         arcpy.AddMessage("Extracting zip file...")  
-        zip = zipfile.ZipFile(os.path.join(arcpy.env.scratchFolder, "Data.zip"), mode="r")
-        zip.extractall(arcpy.env.scratchFolder)
+        zip = zipfile.ZipFile(os.path.join(arcpy.env.scratchFolder, datasetFileName), mode="r")
+        unzipFolder = arcpy.env.scratchFolder        
+        if ".gdb" in downloadLink:
+            unzipFolder = os.path.join(arcpy.env.scratchFolder, "Data.gdb")             
+        zip.extractall(unzipFolder)
 
         # Get the newest unzipped database from the scratch folder
         database = max(glob.iglob(arcpy.env.scratchFolder + r"\*.gdb"), key=os.path.getmtime)
