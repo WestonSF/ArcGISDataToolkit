@@ -14,7 +14,7 @@
 #             - Dataset name - e.g. "FeatureClass"
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    23/10/2015
-# Last Updated:    26/09/2016
+# Last Updated:    03/12/2016
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS for Desktop 10.1+ or ArcGIS Pro 1.1+ (Need to be signed into a portal site)
 # Python Version:   2.7.10+ or 3.4+
@@ -333,12 +333,17 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
                                     # If it's not the last column - geometry
                                     if (valueCount != columnLength):
                                         # Check length of field
-                                        fieldLength = len(value)
+                                        fieldLength = 0
+                                        if (value != None):
+                                            fieldLength = len(value)
                                         # Strip field length to be under 250
                                         if (fieldLength > 250):
                                             charsToStrip = fieldLength - 250
                                             value = value[:-charsToStrip] + "..."
 
+                                        # Change blank values
+                                        if (value.lower() == "none"):
+                                            value = None
                                         # Add each of the values to an array
                                         values.append(str(value))
                                     valueCount = valueCount + 1
@@ -369,6 +374,12 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
                         count = count + 1
                 # Delete cursor
                 del cursor
+
+                fields = arcpy.ListFields(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")))
+                for field in fields:
+                    if (((field.name).lower() != "objectid") and ((field.name).lower() != "shape") and ((field.name).lower() != "shape_length") and ((field.name).lower() != "shape_area")):              
+                        # Make sure any null values are null
+                        arcpy.CalculateField_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), field.name, "changeValue(!" + field.name + "!)", "PYTHON_9.3", "def changeValue(var):\\n  if (var == \"None\"):\\n    return None\\n  else:\\n    return var\\n")
 
                 # If a changeset is being requested
                 if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
@@ -481,12 +492,20 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
                             if sys.version_info[0] >= 3:
                                 # Python 3.x
                                 value = str(feature["properties"][field]).encode('utf-8').decode('utf-8')
+                                # Change blank values
+                                if (value.lower() == "none"):
+                                    value = None
                             else:
                                 # Python 2.x
                                 value = unicode(feature["properties"][field]).encode('utf-8')
-    
+                                # Change blank values
+                                if (value.lower() == "none"):
+                                    value = None
+                                    
                             # Check length of field
-                            fieldLength = len(value)
+                            fieldLength = 0
+                            if (value != None):
+                                fieldLength = len(value)
                             # Strip field length to be under 250
                             if (fieldLength > 250):
                                 charsToStrip = fieldLength - 250
@@ -520,7 +539,13 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
                     printMessage("Loaded " + str(count) + " of " + str(numberRecords) + " records...","info")
                 # Delete cursor
                 del cursor
-                
+
+                fields = arcpy.ListFields(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")))
+                for field in fields:
+                    if (((field.name).lower() != "objectid") and ((field.name).lower() != "shape") and ((field.name).lower() != "shape_length") and ((field.name).lower() != "shape_area")):              
+                        # Make sure any null values are null
+                        arcpy.CalculateField_management(os.path.join(arcpy.env.scratchGDB, wfsDataID.replace("-", "_").replace(".", "_").replace("=", "_").replace(":", "_").replace("&", "_")), field.name, "changeValue(!" + field.name + "!)", "PYTHON_9.3", "def changeValue(var):\\n  if (var == \"None\"):\\n    return None\\n  else:\\n    return var\\n")
+                        
                 # If a changeset is being requested
                 if ("changeset" in wfsDataID.lower()) and (lastUpdateFile):
                     # Clip to the extent feature class if necessary
@@ -657,29 +682,8 @@ def mainFunction(wfsURL,wfsVersion,wfsDataID,dataType,extentDataset,lastUpdateFi
 # Start of custom updates function
 def customUpdates(datasetName):
     ### Custom data update code goes here
-    if (datasetName.lower() == "address"):
-        # Updating new fields needed for searching - Assumes new fields already added
-        arcpy.CalculateField_management("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\Cadastral.SDEADMIN.Address", "fullname", "!address! + \", \" + !locality!", "PYTHON_9.3", "")
-        # Rebuild locator
-        printMessage("Rebuilding address locator...","info")
-        arcpy.RebuildAddressLocator_geocoding("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\SDEADMIN.AddressLocator")       
-    if (datasetName.lower() == "road"):
-        # Updating new fields needed for searching - Assumes new fields already added
-        arcpy.CalculateField_management("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\Cadastral.SDEADMIN.Road", "fullname", "!name! + \", \" + !locality!", "PYTHON_9.3", "")
-        # Rebuild locator
-        printMessage("Rebuilding road locator...","info")
-        arcpy.RebuildAddressLocator_geocoding("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\SDEADMIN.RoadLocator")      
-    if (datasetName.lower() == "parcel"):       
-        # Merge Masterton, Carterton and South Wairarapa property into one feature class
-        arcpy.Merge_management("'" + "\\\\GISDATA\\Data\\Database Connections\\Administrator\\MDC_Core (Admin).sde\\MDC_Core.SDEADMIN.Property';'" + "\\\\GISDATA\\Data\\Database Connections\\Administrator\\CDC_Core (Admin).sde\\CDC_Core.SDEADMIN.Property';'" + "\\\\GISDATA\\Data\\Database Connections\\Administrator\\SWDC_Core (Admin).sde\\SWDC_Core.SDEADMIN.Property'", "\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\Cadastral.SDEADMIN.Property", "")
-        datasetCount = arcpy.GetCount_management("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\Cadastral.SDEADMIN.Property")
-        printMessage("New dataset record count for Property - " + str(datasetCount),"info")
-        if (enableLogging == "true"):
-            logger.info("New dataset record count for Property - " + str(datasetCount))                          
-        # Rebuild locators
-        printMessage("Rebuilding parcel and legal description locators...","info")
-        arcpy.RebuildAddressLocator_geocoding("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\SDEADMIN.LegalDescriptionLocator")    
-        arcpy.RebuildAddressLocator_geocoding("\\\\GISDATA\\Data\\Database Connections\\Administrator\\Cadastral (Admin).sde\\SDEADMIN.ParcelLocator")
+    # Update fullname field and replicate data into FGDB
+    printMessage("Custom data updates...","info")
 # End of custom updates function
 
 
@@ -747,7 +751,7 @@ def applyChangeset(lastUpdateFile,currentDate,changesetDataset,outputWorkspace,t
     # If versioned
     if versionedDataset is True:
         # Stop the edit session and save the changes
-        aprintMessage("Stopping the edit session...","info")
+        printMessage("Stopping the edit session...","info")
         editSession.stopOperation()
         editSession.stopEditing(True)
         
