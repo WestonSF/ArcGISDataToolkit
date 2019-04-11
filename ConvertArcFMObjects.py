@@ -9,7 +9,7 @@
 #                       - Need to install pyodbc python package (For converting option).
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         05/02/2019
-# Last Updated:         17/02/2019
+# Last Updated:         18/02/2019
 # ArcGIS Version:       ArcMap (ArcPy) 10.2+
 # Python Version:       2.7.10
 #--------------------------------
@@ -37,8 +37,8 @@ import pyodbc
 
 # Set global variables
 # Logging
-enableLogging = "false" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
-logFile = os.path.join(os.path.dirname(__file__), "") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
+enableLogging = "true" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
+logFile = os.path.join(os.path.dirname(__file__), "Logs\\ConvertArcFMObjects.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
 # Email Use within code to send email - sendEmail(subject,message,attachment)
 sendErrorEmail = "false"
 emailServerName = "" # e.g. smtp.gmail.com
@@ -55,7 +55,7 @@ output = None
 
 
 # Start of main function
-def mainFunction(inputGeodatabase,outputGeodatabase,copyDatabase): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
+def mainFunction(inputGeodatabase,outputGeodatabase,copyDatabase,datasetsIgnore): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
     try:
         # --------------------------------------- Start of code --------------------------------------- #
         # Check input geodatabase exists
@@ -65,7 +65,7 @@ def mainFunction(inputGeodatabase,outputGeodatabase,copyDatabase): # Add paramet
                 # Create output geodatabase
                 arcpy.CreateFileGDB_management(os.path.dirname(outputGeodatabase), os.path.basename(outputGeodatabase))
                 # Load data into output geodatabase
-                copyData(inputGeodatabase,outputGeodatabase)               
+                copyData(inputGeodatabase,outputGeodatabase,datasetsIgnore)               
                 printMessage("New Esri geodatabase created - " + outputGeodatabase + "...","info")
             else:
                 printMessage("Converting all datasets in geodatabase to Esri objects (Convert)...","info")
@@ -75,7 +75,7 @@ def mainFunction(inputGeodatabase,outputGeodatabase,copyDatabase): # Add paramet
                 # If personal geodatabase
                 elif (os.path.splitext(inputGeodatabase)[1].lower() == ".mdb"):   
                     # Get a list of datasets from the database
-                    datasetList = getDatasetList(inputGeodatabase)
+                    datasetList = getDatasetList(inputGeodatabase,datasetsIgnore)
                     # If there are datasets in the database
                     if (len(datasetList) > 0):
                         # Connect to access database
@@ -195,9 +195,9 @@ def mainFunction(inputGeodatabase,outputGeodatabase,copyDatabase): # Add paramet
 
 
 # Start of copy data function
-def copyData(sourceGeodatabase,targetGeodatabase):
+def copyData(sourceGeodatabase,targetGeodatabase,datasetsIgnore):
     # Get a list of datasets from the database
-    datasetList = getDatasetList(sourceGeodatabase)
+    datasetList = getDatasetList(sourceGeodatabase,datasetsIgnore)
 
     printMessage("Copying data into database - " + targetGeodatabase + "...","info")
     for dataset in datasetList:
@@ -215,7 +215,7 @@ def copyData(sourceGeodatabase,targetGeodatabase):
 
     
 # Start of get dataset list function
-def getDatasetList(geodatabase):
+def getDatasetList(geodatabase,datasetsIgnore):
     printMessage("Getting a list of datasets - " + geodatabase + "...","info")
     # Get a list of the feature datasets in the database
     arcpy.env.workspace = geodatabase
@@ -226,9 +226,15 @@ def getDatasetList(geodatabase):
         datasetList = datasetList + arcpy.ListFeatureClasses("","",featureDataset) 
     # Get a list of the feature classes in the database
     datasetList = datasetList + arcpy.ListFeatureClasses()
-     # Get a list of the tables in the database
+    # Get a list of the tables in the database
     datasetList = datasetList + arcpy.ListTables()
 
+    # Remove datasets from the list
+    printMessage("Ignoring the following datasets - " + datasetsIgnore + "...","info")
+    for datasetIgnore in datasetsIgnore.split(","):
+        if datasetIgnore in datasetList:
+            datasetList.remove(datasetIgnore)
+        
     return datasetList
 # End of get dataset list function
 

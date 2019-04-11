@@ -9,7 +9,7 @@
 #             no locks on geodatabase.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    31/05/2013
-# Last Updated:    17/08/2017
+# Last Updated:    03/04/2019
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   10.4+
 # Python Version:   2.6/2.7
@@ -24,7 +24,7 @@ import smtplib
 # Set global variables
 # Logging
 enableLogging = "true" # Use within code - logger.info("Example..."), logger.warning("Example..."), logger.error("Example...") and to print messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
-logFile = os.path.join(os.path.dirname(__file__), "Logs\DataUpdateWestland.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
+logFile = os.path.join(os.path.dirname(__file__), "DataUpdateFromZip.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
 # Email logging
 sendErrorEmail = "false"
 emailServerName = "" # e.g. smtp.gmail.com
@@ -144,7 +144,7 @@ def mainFunction(updateFolder,fileName,updateMode,geodatabase): # Get parameters
             # If it's a FGDB
             if file.endswith(".gdb"):
                 # Assign the geodatabase workspace and load in the datasets to the lists
-                arcpy.env.workspace = file
+                arcpy.env.workspace = os.path.join(str(tempFolder), file)
                 featureclassList = arcpy.ListFeatureClasses()   
                 tableList = arcpy.ListTables()       
       
@@ -254,145 +254,6 @@ def mainFunction(updateFolder,fileName,updateMode,geodatabase): # Get parameters
 
                                     # Copy table into geodatabase using the same dataset name
                                     arcpy.TableSelect_analysis(eachTable, os.path.join(geodatabase, describeDataset.name), "")
-                                    
-        #################### Custom code for WCRC and BDC ####################
-                           # For WCRC data updates
-                           if "wcrc" in updateFolder.lower():
-                               # For the property details view from WCRC
-                               if "vw_propertydetails" in eachTable.lower():
-                                   # Copy property details view into enterprise geodatabase
-                                   arcpy.TableSelect_analysis(eachTable, os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "vw_WCRCPropertyDetails"), "")
-                                   # Copy property spatial view into file geodatabase and dissolve on valuation ID
-                                   arcpy.AddMessage("Copying over feature class - " + os.path.join("D:\Data\WCRC.gdb", "Property") + "...")
-                                   if (enableLogging == "true"):
-                                      logger.info("Copying over feature class - " + os.path.join("D:\Data\WCRC.gdb", "Property") + "...") 
-                                   arcpy.CopyFeatures_management(os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "vwWCRCProperty"), os.path.join("D:\Data\WCRC.gdb", "PropertyParcel"), "", "0", "0", "0")
-                                   arcpy.Dissolve_management(os.path.join("D:\Data\WCRC.gdb", "PropertyParcel"), os.path.join("D:\Data\WCRC.gdb", "Property"), "ValuationID", "", "MULTI_PART", "DISSOLVE_LINES")
-                                   arcpy.JoinField_management(os.path.join("D:\Data\WCRC.gdb", "Property"), "ValuationID", os.path.join("D:\Data\WCRC.gdb", "PropertyParcel"), "ValuationID", "")
-
-                                   # Get dataset count
-                                   datasetCount = arcpy.GetCount_management(os.path.join("D:\Data\WCRC.gdb", "Property")) 
-                                   arcpy.AddMessage("Dataset record count - " + str(datasetCount))
-                                   if (enableLogging == "true"):
-                                       logger.info("Dataset record count - " + str(datasetCount))   
-                           # For BDC data updates
-                           if "bdc" in updateFolder.lower():                             
-                               # For the property match table from BDC and WCRC
-                               if "matchtable" in eachTable.lower():
-                                   # Update the West Coast match table
-                                   # WCRC match table - Copy table and tidy up the fields
-                                   arcpy.TableSelect_analysis("D:\Data\FTP\WCRC\WCRCPropertyToParcel.csv", os.path.join("D:\Data\WCRC.gdb", "CoreLogic_PropertyToParcel"), "")
-                                   arcpy.AddField_management(os.path.join("D:\Data\WCRC.gdb", "CoreLogic_PropertyToParcel"), "ValuationID", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
-                                   arcpy.AddField_management(os.path.join("D:\Data\WCRC.gdb", "CoreLogic_PropertyToParcel"), "ParcelID", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
-                                   arcpy.CalculateField_management(os.path.join("D:\Data\WCRC.gdb", "CoreLogic_PropertyToParcel"), "ValuationID", "!ValRef_Formatted!", "PYTHON_9.3", "")
-                                   arcpy.CalculateField_management(os.path.join("D:\Data\WCRC.gdb", "CoreLogic_PropertyToParcel"), "ParcelID", "!Parcel_ID!", "PYTHON_9.3", "")
-                                   arcpy.DeleteField_management(os.path.join("D:\Data\WCRC.gdb", "CoreLogic_PropertyToParcel"), "QPID;Roll;Assessment;Suffix;ValRef_Formatted;Apportionment;Category;Building_Floor_Area;Building_Site_Cover;Parcel_ID;Physical_Address;Physical_Suburb;Physical_City;Legal_Description")
-                                       
-                                   # BDC match table - Tidy up the fields
-                                   arcpy.AddField_management(eachTable, "ValuationID", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
-                                   arcpy.AddField_management(eachTable, "ParcelID", "TEXT", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
-                                   arcpy.CalculateField_management(eachTable, "ValuationID", "!val_id!", "PYTHON_9.3", "")
-                                   arcpy.CalculateField_management(eachTable, "ParcelID", "!PAR_ID!", "PYTHON_9.3", "")
-                                   arcpy.DeleteField_management(eachTable, "PERIMETER;LEGAL_ID;PAR_ID;LEGAL;HOW;ASSESS;FLAG;COMMENT;POLYGONID;Edited_By;Edit_Date;Descriptio;OBJECTID_12;LEGAL_1;OBJECTID_12_13;val_id;val1;root_val_id;ra_unique_id;POINT_X;POINT_Y")
-                                   # Copy out the WCRC match table
-                                   arcpy.TableSelect_analysis(os.path.join("D:\Data\WCRC.gdb", "CoreLogic_PropertyToParcel"), "in_memory\\PropertyToParcel", "")
-                                   # Join the Buller match table
-                                   arcpy.JoinField_management("in_memory\\PropertyToParcel", "ValuationID", eachTable, "ValuationID", "ValuationID")
-                                   # Select out the non-Buller records
-                                   arcpy.TableSelect_analysis("in_memory\\PropertyToParcel", "in_memory\\PropertyToParcel_NoBDC", "ValuationID_1 IS NULL")
-                                   # Merge Buller match table with the WCRC match table 
-                                   arcpy.Merge_management("in_memory\\PropertyToParcel_NoBDC;" + eachTable, os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "PropertyToParcel"), "")
-                                   arcpy.DeleteField_management(os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "PropertyToParcel"), "ValuationID_1")
-
-                               # For the property view from BDC
-                               if "vwproperty" in eachTable.lower():
-                                   # Copy property view into enterprise geodatabase
-                                   arcpy.TableSelect_analysis(eachTable, os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "vw_BDCProperty"), "")
-                                   # Copy property spatial view into file geodatabase and dissolve on valuation ID
-                                   arcpy.AddMessage("Copying over feature class - " + os.path.join("D:\Data\BDC.gdb", "Property") + "...")
-                                   if (enableLogging == "true"):
-                                       logger.info("Copying over feature class - " + os.path.join("D:\Data\BDC.gdb", "Property") + "...")
-                                   arcpy.CopyFeatures_management(os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "vwBDCProperty"), os.path.join("D:\Data\BDC.gdb", "PropertyParcel"), "", "0", "0", "0")
-                                   arcpy.Dissolve_management(os.path.join("D:\Data\BDC.gdb", "PropertyParcel"), os.path.join("D:\Data\BDC.gdb", "Property"), "ValuationID", "", "MULTI_PART", "DISSOLVE_LINES")
-                                   arcpy.JoinField_management(os.path.join("D:\Data\BDC.gdb", "Property"), "ValuationID", os.path.join("D:\Data\BDC.gdb", "PropertyParcel"), "ValuationID", "")
-
-                                   # Get dataset count
-                                   datasetCount = arcpy.GetCount_management(os.path.join("D:\Data\BDC.gdb", "Property")) 
-                                   arcpy.AddMessage("Dataset record count - " + str(datasetCount))
-                                   if (enableLogging == "true"):
-                                       logger.info("Dataset record count - " + str(datasetCount))
-                                       
-                               # For the resource consent view from BDC
-                               if "vwresourceconsent" in eachTable.lower():
-                                   # Copy resource consent view into enterprise geodatabase
-                                   arcpy.TableSelect_analysis(eachTable, os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "vw_BDCResourceConsent"), "")
-                                   # Copy resource consent spatial view into file geodatabase
-                                   arcpy.AddMessage("Copying over feature class - " + os.path.join("D:\Data\BDC.gdb", "ResourceConsent") + "...")
-                                   if (enableLogging == "true"):
-                                       logger.info("Copying over feature class - " + os.path.join("D:\Data\BDC.gdb", "ResourceConsent") + "...")
-                                   arcpy.CopyFeatures_management(os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "vwBDCResourceConsent"), "in_memory\ResourceConsent", "", "0", "0", "0")
-                                   arcpy.Dissolve_management("in_memory\ResourceConsent", os.path.join("D:\Data\BDC.gdb", "ResourceConsent"), "ConsentID", "", "MULTI_PART", "DISSOLVE_LINES")
-                                   arcpy.JoinField_management(os.path.join("D:\Data\BDC.gdb", "ResourceConsent"), "ConsentID", "in_memory\ResourceConsent", "ConsentID", "")
-
-                                    # Get dataset count
-                                   datasetCount = arcpy.GetCount_management(os.path.join("D:\Data\BDC.gdb", "ResourceConsent")) 
-                                   arcpy.AddMessage("Dataset record count - " + str(datasetCount))
-                                   if (enableLogging == "true"):
-                                       logger.info("Dataset record count - " + str(datasetCount))
-                                       
-                               # For the building consent view from BDC
-                               if "vwbuildingconsent" in eachTable.lower():
-                                   # Copy building consent view into enterprise geodatabase
-                                   arcpy.TableSelect_analysis(eachTable, os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "vw_BDCBuildingConsent"), "")
-                                   # Copy building consent spatial view into file geodatabase
-                                   arcpy.AddMessage("Copying over feature class - " + os.path.join("D:\Data\BDC.gdb", "BuildingConsent") + "...")
-                                   if (enableLogging == "true"):
-                                       logger.info("Copying over feature class - " + os.path.join("D:\Data\BDC.gdb", "BuildingConsent") + "...")
-                                   arcpy.CopyFeatures_management(os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "vwBDCBuildingConsent"), "in_memory\BuildingConsent", "", "0", "0", "0")
-                                   arcpy.Dissolve_management("in_memory\BuildingConsent", os.path.join("D:\Data\BDC.gdb", "BuildingConsent"), "ConsentID", "", "MULTI_PART", "DISSOLVE_LINES")
-                                   arcpy.JoinField_management(os.path.join("D:\Data\BDC.gdb", "BuildingConsent"), "ConsentID", "in_memory\BuildingConsent", "ConsentID", "")
-
-                                    # Get dataset count
-                                   datasetCount = arcpy.GetCount_management(os.path.join("D:\Data\BDC.gdb", "BuildingConsent")) 
-                                   arcpy.AddMessage("Dataset record count - " + str(datasetCount))
-                                   if (enableLogging == "true"):
-                                       logger.info("Dataset record count - " + str(datasetCount))
-                                       
-                               # For the licence view from BDC
-                               if "vwlicence" in eachTable.lower():
-                                   # Copy licence view into enterprise geodatabase
-                                   arcpy.TableSelect_analysis(eachTable, os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "vw_BDCLicence"), "Valuation_No <> ''")
-                                   # Copy licence spatial view into file geodatabase
-                                   arcpy.AddMessage("Copying over feature class - " + os.path.join("D:\Data\BDC.gdb", "Licence") + "...")
-                                   if (enableLogging == "true"):
-                                       logger.info("Copying over feature class - " + os.path.join("D:\Data\BDC.gdb", "Licence") + "...")
-                                   arcpy.CopyFeatures_management(os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "vwBDCLicence"), "in_memory\Licence", "", "0", "0", "0")
-                                   arcpy.Dissolve_management("in_memory\Licence", os.path.join("D:\Data\BDC.gdb", "Licence"), "LicenceNo", "", "MULTI_PART", "DISSOLVE_LINES")
-                                   arcpy.JoinField_management(os.path.join("D:\Data\BDC.gdb", "Licence"), "LicenceNo", "in_memory\Licence", "LicenceNo", "")
-
-                                    # Get dataset count
-                                   datasetCount = arcpy.GetCount_management(os.path.join("D:\Data\BDC.gdb", "Licence")) 
-                                   arcpy.AddMessage("Dataset record count - " + str(datasetCount))
-                                   if (enableLogging == "true"):
-                                       logger.info("Dataset record count - " + str(datasetCount))
-                                       
-                                # For the LIM view from BDC
-                               if "vwlim" in eachTable.lower():
-                                   # Copy lim view into enterprise geodatabase
-                                   arcpy.TableSelect_analysis(eachTable, os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "vw_BDCLIM"), "")            
-                                   # Copy lim spatial view into file geodatabase
-                                   arcpy.AddMessage("Copying over feature class - " + os.path.join("D:\Data\BDC.gdb", "LIM") + "...")
-                                   if (enableLogging == "true"):
-                                       logger.info("Copying over feature class - " + os.path.join("D:\Data\BDC.gdb", "LIM") + "...")
-                                   arcpy.CopyFeatures_management(os.path.join("D:\Data\Database Connections\GISData@WCCHCGIS1 (gisadmin).sde", "vwBDCLIM"), "in_memory\LIM", "", "0", "0", "0")
-                                   arcpy.Dissolve_management("in_memory\LIM", os.path.join("D:\Data\BDC.gdb", "LIM"), "RecordID", "", "MULTI_PART", "DISSOLVE_LINES")
-                                   arcpy.JoinField_management(os.path.join("D:\Data\BDC.gdb", "LIM"), "RecordID", "in_memory\LIM", "RecordID", "")
-
-                                   # Get dataset count
-                                   datasetCount = arcpy.GetCount_management(os.path.join("D:\Data\BDC.gdb", "LIM")) 
-                                   arcpy.AddMessage("Dataset record count - " + str(datasetCount))
-                                   if (enableLogging == "true"):
-                                       logger.info("Dataset record count - " + str(datasetCount))  
                        else:
                            arcpy.AddWarning("Dataset " + eachTable + " is empty and won't be copied...")                        
                            # Logging
