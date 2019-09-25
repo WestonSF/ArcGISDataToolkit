@@ -19,8 +19,8 @@ import smtplib
 
 # Set global variables
 # Logging
-enableLogging = "false" # Use within code - logger.info("Example..."), logger.warning("Example..."), logger.error("Example...") and to print messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
-logFile = "" # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
+enableLogging = "true" # Use within code - logger.info("Example..."), logger.warning("Example..."), logger.error("Example...") and to print messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
+logFile = os.path.join(os.path.dirname(__file__), "GeodatabaseReplication.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
 # Email logging
 sendErrorEmail = "false"
 emailServerName = "" # e.g. smtp.gmail.com
